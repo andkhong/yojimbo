@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Yojimbo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.14.3" defer></script>
+</head>
+<body class="h-full">
+    <div class="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8" x-data="loginForm()">
+        <div class="sm:mx-auto sm:w-full sm:max-w-md">
+            <h1 class="text-center text-4xl font-bold tracking-tight text-indigo-700">Yojimbo</h1>
+            <p class="mt-2 text-center text-sm text-gray-600">AI-Powered Government Receptionist</p>
+            <h2 class="mt-6 text-center text-2xl font-bold text-gray-900">Sign in to your account</h2>
+        </div>
+
+        <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+            <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+                <form @submit.prevent="login()" class="space-y-6">
+                    <div x-show="error" x-cloak class="rounded-md bg-red-50 p-4">
+                        <p class="text-sm text-red-700" x-text="error"></p>
+                    </div>
+
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                        <input id="username" type="text" x-model="username" required
+                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                    </div>
+
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input id="password" type="password" x-model="password" required
+                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                    </div>
+
+                    <button type="submit" :disabled="loading"
+                            class="flex w-full justify-center rounded-md bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50">
+                        <span x-show="!loading">Sign in</span>
+                        <span x-show="loading">Signing in...</span>
+                    </button>
+                </form>
+
+                <div class="mt-6 border-t pt-4">
+                    <p class="text-xs text-gray-500 text-center">
+                        Demo credentials: <strong>admin</strong> / <strong>admin</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function loginForm() {
+        return {
+            username: '',
+            password: '',
+            error: '',
+            loading: false,
+            async login() {
+                this.loading = true;
+                this.error = '';
+                try {
+                    const resp = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: this.username, password: this.password }),
+                    });
+                    if (resp.ok) {
+                        window.location.href = '/dashboard';
+                    } else {
+                        const data = await resp.json();
+                        this.error = data.detail || 'Invalid credentials';
+                    }
+                } catch (e) {
+                    this.error = 'Connection error. Please try again.';
+                } finally {
+                    this.loading = false;
+                }
+            }
+        };
+    }
+    </script>
+</body>
+</html>

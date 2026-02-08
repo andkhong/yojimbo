@@ -1,0 +1,45 @@
+<nav class="bg-indigo-700">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="flex h-16 items-center justify-between">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <span class="text-2xl font-bold text-white tracking-tight">Yojimbo</span>
+                </div>
+                <div class="ml-10 flex items-baseline space-x-4">
+                    <a href="/dashboard"
+                       class="rounded-md px-3 py-2 text-sm font-medium
+                              {% if active_page == 'dashboard' %}bg-indigo-800 text-white{% else %}text-indigo-200 hover:bg-indigo-600 hover:text-white{% endif %}">
+                        Dashboard
+                    </a>
+                    <a href="/dashboard/calls"
+                       class="rounded-md px-3 py-2 text-sm font-medium
+                              {% if active_page == 'calls' %}bg-indigo-800 text-white{% else %}text-indigo-200 hover:bg-indigo-600 hover:text-white{% endif %}">
+                        Calls
+                    </a>
+                    <a href="/dashboard/appointments"
+                       class="rounded-md px-3 py-2 text-sm font-medium
+                              {% if active_page == 'appointments' %}bg-indigo-800 text-white{% else %}text-indigo-200 hover:bg-indigo-600 hover:text-white{% endif %}">
+                        Appointments
+                    </a>
+                    <a href="/dashboard/contacts"
+                       class="rounded-md px-3 py-2 text-sm font-medium
+                              {% if active_page == 'contacts' %}bg-indigo-800 text-white{% else %}text-indigo-200 hover:bg-indigo-600 hover:text-white{% endif %}">
+                        Contacts
+                    </a>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2" x-show="activeCalls > 0" x-cloak>
+                    <span class="inline-flex h-3 w-3 rounded-full bg-green-400 animate-pulse-dot"></span>
+                    <span class="text-sm text-green-200" x-text="activeCalls + ' active call' + (activeCalls > 1 ? 's' : '')"></span>
+                </div>
+                <span class="text-sm text-indigo-200">{{ office_name }}</span>
+                <form action="/api/auth/logout" method="post" class="inline">
+                    <button type="submit" class="rounded-md bg-indigo-800 px-3 py-1.5 text-sm text-indigo-200 hover:bg-indigo-900 hover:text-white">
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</nav>
