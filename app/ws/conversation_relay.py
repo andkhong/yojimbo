@@ -18,7 +18,7 @@ from app.database import async_session_factory
 from app.models.call import Call, ConversationTurn
 from app.models.department import Department
 from app.services.ai_agent import ConversationSession
-from app.services import notification, translator
+from app.services import notification
 
 logger = logging.getLogger(__name__)
 
@@ -53,30 +53,21 @@ async def handle_conversation_relay(websocket: WebSocket) -> None:
                 if not caller_text.strip():
                     continue
 
+                # Twilio provides the detected BCP-47 tag; strip region suffix
                 detected_lang = message.get("lang", "en-US").split("-")[0]
 
+                # Sync session language if Twilio confirmed a different language.
+                # This rebuilds the Gemini system prompt so it responds natively.
+                if detected_lang != session.caller_language:
+                    session.update_language(detected_lang)
+
                 async with async_session_factory() as db:
-                    # Translate caller speech to English if needed
-                    english_text = caller_text
-                    if detected_lang != "en":
-                        session.caller_language = detected_lang
-                        english_text = await translator.translate_text(
-                            caller_text, "en", detected_lang
-                        )
-
-                    # Process through Gemini AI agent
-                    response_english = await session.process_caller_input(
-                        english_text, db
+                    # Pass caller speech directly to Gemini — no translation needed.
+                    # Gemini 2.0 Flash understands 40+ languages natively and will
+                    # respond in the caller's language per the system prompt.
+                    response_text = await session.process_caller_input(
+                        caller_text, db
                     )
-
-                    # Translate response back to caller's language
-                    response_text = response_english
-                    if session.caller_language != "en":
-                        response_text = await translator.translate_text(
-                            response_english,
-                            session.caller_language,
-                            "en",
-                        )
 
                     # Store conversation turns in the database
                     if call_id:
@@ -86,15 +77,15 @@ async def handle_conversation_relay(websocket: WebSocket) -> None:
                             sequence=seq,
                             role="caller",
                             original_text=caller_text,
-                            translated_text=english_text if detected_lang != "en" else None,
-                            language=detected_lang,
+                            translated_text=None,  # no translation — stored as-is
+                            language=session.caller_language,
                         ))
                         db.add(ConversationTurn(
                             call_id=call_id,
                             sequence=seq + 1,
                             role="agent",
                             original_text=response_text,
-                            translated_text=response_english if session.caller_language != "en" else None,
+                            translated_text=None,  # response already in caller's language
                             language=session.caller_language,
                         ))
                         await db.commit()
@@ -104,8 +95,8 @@ async def handle_conversation_relay(websocket: WebSocket) -> None:
                         call_id=call_id or 0,
                         role="caller",
                         original_text=caller_text,
-                        translated_text=english_text if detected_lang != "en" else None,
-                        language=detected_lang,
+                        translated_text=None,
+                        language=session.caller_language,
                     )
 
                 # Send response back via ConversationRelay

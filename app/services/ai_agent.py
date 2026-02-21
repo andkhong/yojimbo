@@ -67,6 +67,34 @@ class ConversationSession:
             departments_info=dept_info or "No departments configured.",
         )
 
+    def update_language(self, language_code: str) -> None:
+        """Update the caller's language and rebuild the system instruction.
+
+        Called when Twilio confirms the caller's language on the first turn
+        (the ``lang`` field in the ``prompt`` event).  Rebuilds
+        ``system_instruction`` so Gemini responds in the correct language
+        for all subsequent turns.
+        """
+        if language_code == self.caller_language:
+            return
+        self.caller_language = language_code
+        lang_name = LANGUAGE_NAMES.get(language_code, language_code)
+        dept_info = "\n".join(
+            f"- {d['name']} (ID: {d['id']}): {d.get('description', 'N/A')}. "
+            f"Hours: {d.get('operating_hours', 'Mon-Fri 9am-5pm')}"
+            for d in self.departments
+        )
+        self.system_instruction = RECEPTIONIST_SYSTEM_PROMPT.format(
+            office_name=settings.office_name,
+            current_time=datetime.now().strftime("%A, %B %d, %Y at %I:%M %p"),
+            caller_language=lang_name,
+            departments_info=dept_info or "No departments configured.",
+        )
+        logger.info(
+            "Session %s language updated to %s (%s)",
+            self.call_sid, language_code, lang_name,
+        )
+
     def _get_tools(self):
         """Build Gemini tools configuration."""
         from google.genai import types
