@@ -1,6 +1,5 @@
 """Tests for the AI agent service (ConversationSession)."""
 
-import pytest
 from app.services.ai_agent import ConversationSession
 
 

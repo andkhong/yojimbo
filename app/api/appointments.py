@@ -16,6 +16,7 @@ from app.schemas.appointment import (
     AvailabilitySlot,
 )
 from app.services import appointment_engine, notification
+from app.services.appointment_engine import BookingConflictError
 
 router = APIRouter(prefix="/api/appointments", tags=["appointments"])
 
@@ -61,16 +62,19 @@ async def create_appointment(
     data: AppointmentCreate,
     db: AsyncSession = Depends(get_db),
 ):
-    appt = await appointment_engine.book_appointment(
-        db,
-        contact_id=data.contact_id,
-        department_id=data.department_id,
-        scheduled_start=data.scheduled_start,
-        scheduled_end=data.scheduled_end,
-        title=data.title,
-        description=data.description,
-        language=data.language,
-    )
+    try:
+        appt = await appointment_engine.book_appointment(
+            db,
+            contact_id=data.contact_id,
+            department_id=data.department_id,
+            scheduled_start=data.scheduled_start,
+            scheduled_end=data.scheduled_end,
+            title=data.title,
+            description=data.description,
+            language=data.language,
+        )
+    except BookingConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
 
     await notification.notify_appointment_created({
         "appointment_id": appt.id,
