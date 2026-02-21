@@ -1,10 +1,7 @@
 """Tests for REST API endpoints."""
 
 import pytest
-from sqlalchemy import select
 
-from app.models.contact import Contact
-from app.models.department import Department
 
 
 @pytest.mark.asyncio

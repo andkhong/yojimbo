@@ -1,17 +1,19 @@
 """Appointment booking engine: availability checking, booking, and cancellation."""
 
-import json
 import logging
 from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.appointment import Appointment, TimeSlot
 from app.models.contact import Contact
-from app.models.department import Department
 
 logger = logging.getLogger(__name__)
+
+
+class BookingConflictError(Exception):
+    """Raised when a time slot is already at capacity."""
 
 
 async def get_available_slots(
@@ -87,8 +89,15 @@ async def book_appointment(
     description: str | None = None,
     language: str = "en",
     call_id: int | None = None,
+    skip_conflict_check: bool = False,
 ) -> Appointment:
-    """Book an appointment. Returns the created Appointment."""
+    """Book an appointment. Returns the created Appointment.
+
+    Raises BookingConflictError if the time slot is already at capacity.
+    """
+    if not skip_conflict_check:
+        await _check_booking_capacity(db, department_id, scheduled_start, scheduled_end)
+
     appointment = Appointment(
         contact_id=contact_id,
         department_id=department_id,
@@ -104,6 +113,57 @@ async def book_appointment(
     await db.flush()
     await db.refresh(appointment)
     return appointment
+
+
+async def _check_booking_capacity(
+    db: AsyncSession,
+    department_id: int,
+    scheduled_start: datetime,
+    scheduled_end: datetime,
+) -> None:
+    """Verify the slot has capacity. Raises BookingConflictError if full.
+
+    Finds the TimeSlot configuration covering this window and checks whether
+    existing confirmed/pending appointments have exhausted max_concurrent.
+    """
+    day_of_week = scheduled_start.weekday()
+
+    # Find the TimeSlot config for this department/day that covers the window
+    result = await db.execute(
+        select(TimeSlot).where(
+            TimeSlot.department_id == department_id,
+            TimeSlot.day_of_week == day_of_week,
+            TimeSlot.is_active.is_(True),
+        )
+    )
+    slot_configs = result.scalars().all()
+
+    # Determine the applicable max_concurrent (use the first matching config)
+    max_concurrent = 1
+    for config in slot_configs:
+        config_start = datetime.combine(scheduled_start.date(), config.start_time)
+        config_end = datetime.combine(scheduled_start.date(), config.end_time)
+        if config_start <= scheduled_start and scheduled_end <= config_end:
+            max_concurrent = config.max_concurrent
+            break
+
+    # Count existing overlapping confirmed/pending appointments
+    overlapping_count = (
+        await db.execute(
+            select(func.count()).where(
+                Appointment.department_id == department_id,
+                Appointment.status.in_(["confirmed", "pending"]),
+                Appointment.scheduled_start < scheduled_end,
+                Appointment.scheduled_end > scheduled_start,
+            )
+        )
+    ).scalar() or 0
+
+    if overlapping_count >= max_concurrent:
+        raise BookingConflictError(
+            f"Time slot {scheduled_start.isoformat()} is fully booked "
+            f"({overlapping_count}/{max_concurrent} slots taken)."
+        )
 
 
 async def cancel_appointment(

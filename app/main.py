@@ -19,7 +19,6 @@ from app.models.appointment import Appointment
 from app.models.call import Call
 from app.models.contact import Contact
 from app.models.department import Department
-from app.models.message import SMSMessage
 from app.services import notification
 from app.ws.conversation_relay import handle_conversation_relay
 from app.ws.dashboard import handle_dashboard_ws

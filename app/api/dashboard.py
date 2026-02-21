@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import authenticate_user, get_current_user, hash_password
+from app.core.security import authenticate_user, get_current_user
 from app.database import get_db
 from app.models.appointment import Appointment
 from app.models.call import Call

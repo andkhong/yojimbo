@@ -13,7 +13,6 @@ from datetime import datetime
 
 from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session_factory
 from app.models.call import Call, ConversationTurn

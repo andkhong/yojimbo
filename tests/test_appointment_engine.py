@@ -4,9 +4,7 @@ import pytest
 from datetime import date, datetime, timedelta
 from sqlalchemy import select
 
-from app.models.contact import Contact
 from app.models.department import Department
-from app.models.appointment import Appointment
 from app.services.appointment_engine import (
     book_appointment,
     cancel_appointment,
