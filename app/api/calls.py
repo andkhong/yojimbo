@@ -209,6 +209,61 @@ async def transfer_call(
     return {"transferred": True, "call_id": call_id, "transferred_to": transfer_to}
 
 
+@router.get("/{call_id}/recording", summary="Get the recording URL for a completed call")
+async def get_call_recording(call_id: int, db: AsyncSession = Depends(get_db)):
+    """Return the Twilio recording URL for a completed call (if recording was enabled)."""
+    call = (await db.execute(
+        select(Call).where(Call.id == call_id)
+    )).scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+
+    if not call.recording_url:
+        # Try to fetch from Twilio if we have a SID
+        if call.twilio_call_sid:
+            try:
+                from app.config import settings
+                from twilio.rest import Client
+
+                client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
+                recordings = client.recordings.list(call_sid=call.twilio_call_sid, limit=1)
+                if recordings:
+                    call.recording_url = (
+                        f"https://api.twilio.com{recordings[0].uri.replace('.json', '.mp3')}"
+                    )
+            except Exception as exc:
+                logger.debug("Could not fetch recording from Twilio: %s", exc)
+
+    return {
+        "call_id": call_id,
+        "recording_url": call.recording_url,
+        "has_recording": call.recording_url is not None,
+    }
+
+
+@router.put("/{call_id}/recording", summary="Store the recording URL for a call")
+async def set_call_recording(
+    call_id: int,
+    recording_url: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Store or update the recording URL for a call.
+
+    Called by the Twilio recording status callback webhook.
+    """
+    call = (await db.execute(
+        select(Call).where(Call.id == call_id)
+    )).scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+
+    call.recording_url = recording_url
+    return {
+        "call_id": call_id,
+        "recording_url": recording_url,
+    }
+
+
 @router.post("/{call_id}/terminate", summary="Terminate an active call from the dashboard")
 async def terminate_call(
     call_id: int,
