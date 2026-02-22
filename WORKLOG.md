@@ -5,7 +5,7 @@
 ### Current state
 - **Branch:** `feat/government-platform`
 - **Tests:** 197 passing (was 29 at MVP baseline)
-- **Budget spent:** ~$2.50 / $99 total (well within cap)
+- **Budget spent:** CORRECTED: $35 spent / $99 total | $64 remaining | halt at $20 remaining
 - **PR:** https://github.com/andkhong/yojimbo/pull/4 (merged to main via PR)
 
 ---
