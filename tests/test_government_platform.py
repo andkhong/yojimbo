@@ -211,14 +211,14 @@ async def test_create_user(client):
 async def test_create_user_invalid_role(client):
     resp = await client.post(
         "/api/users",
-        json={"username": "x", "password": "p", "name": "X", "role": "superuser"},
+        json={"username": "x", "password": "password1", "name": "X", "role": "superuser"},
     )
     assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
 async def test_create_user_duplicate_username(client):
-    payload = {"username": "dup", "password": "p", "name": "Dup", "role": "operator"}
+    payload = {"username": "dup", "password": "password1", "name": "Dup", "role": "operator"}
     await client.post("/api/users", json=payload)
     resp = await client.post("/api/users", json=payload)
     assert resp.status_code == 409
@@ -228,7 +228,7 @@ async def test_create_user_duplicate_username(client):
 async def test_get_user(client):
     resp = await client.post(
         "/api/users",
-        json={"username": "bob", "password": "p", "name": "Bob", "role": "supervisor"},
+        json={"username": "bob", "password": "password1", "name": "Bob", "role": "supervisor"},
     )
     uid = resp.json()["user"]["id"]
     resp2 = await client.get(f"/api/users/{uid}")
@@ -240,7 +240,12 @@ async def test_get_user(client):
 async def test_update_user_role(client):
     resp = await client.post(
         "/api/users",
-        json={"username": "charlie", "password": "p", "name": "Charlie", "role": "operator"},
+        json={
+            "username": "charlie",
+            "password": "password1",
+            "name": "Charlie",
+            "role": "operator",
+        },
     )
     uid = resp.json()["user"]["id"]
     resp2 = await client.patch(f"/api/users/{uid}", json={"role": "supervisor"})
@@ -274,7 +279,12 @@ async def test_deactivate_user(client, db):
 async def test_cannot_deactivate_last_admin(client):
     resp = await client.post(
         "/api/users",
-        json={"username": "lastadmin", "password": "p", "name": "Last Admin", "role": "admin"},
+        json={
+            "username": "lastadmin",
+            "password": "password1",
+            "name": "Last Admin",
+            "role": "admin",
+        },
     )
     uid = resp.json()["user"]["id"]
     resp2 = await client.delete(f"/api/users/{uid}")
@@ -285,7 +295,7 @@ async def test_cannot_deactivate_last_admin(client):
 async def test_list_users_by_role(client):
     await client.post(
         "/api/users",
-        json={"username": "op1", "password": "p", "name": "Op1", "role": "operator"},
+        json={"username": "op1", "password": "password1", "name": "Op1", "role": "operator"},
     )
     resp = await client.get("/api/users/by-role/operator")
     assert resp.status_code == 200

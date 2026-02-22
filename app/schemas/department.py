@@ -1,8 +1,11 @@
 """Department schemas."""
 
+import re
 from datetime import datetime, time
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+_CODE_RE = re.compile(r"^[A-Z0-9_\-]{1,20}$")
 
 
 class DepartmentCreate(BaseModel):
@@ -13,6 +16,26 @@ class DepartmentCreate(BaseModel):
     description: str | None = None
     operating_hours: str | None = None
     languages: str | None = None
+
+    @field_validator("code")
+    @classmethod
+    def validate_code(cls, v: str) -> str:
+        v = v.strip().upper()
+        if not _CODE_RE.match(v):
+            raise ValueError(
+                "Department code must be 1-20 uppercase letters, numbers, underscores, or hyphens."
+            )
+        return v
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 2:
+            raise ValueError("Department name must be at least 2 characters.")
+        if len(v) > 255:
+            raise ValueError("Department name must be 255 characters or fewer.")
+        return v
 
 
 class DepartmentUpdate(BaseModel):

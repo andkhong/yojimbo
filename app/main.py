@@ -16,6 +16,7 @@ from app.api.router import api_router
 from app.config import settings
 from app.database import get_db, init_db
 from app.middleware.audit import AuditLogMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
 from app.models.appointment import Appointment
 from app.models.call import Call
 from app.models.contact import Contact
@@ -54,9 +55,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Middleware
-app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
+# Middleware (added in reverse order — last added = outermost)
 app.add_middleware(AuditLogMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 
 # Static files and templates
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
