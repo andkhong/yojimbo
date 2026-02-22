@@ -18,6 +18,8 @@ class Call(Base):
     department_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("departments.id"))
     summary: Mapped[str | None] = mapped_column(Text)
     sentiment: Mapped[str | None] = mapped_column(String(20))
+    resolution_status: Mapped[str | None] = mapped_column(String(20))  # resolved, escalated, abandoned
+    partial_transcript: Mapped[str | None] = mapped_column(Text)  # live partial transcript
     duration_seconds: Mapped[int | None] = mapped_column(Integer)
     recording_url: Mapped[str | None] = mapped_column(String(512))
     started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
