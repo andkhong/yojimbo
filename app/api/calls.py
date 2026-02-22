@@ -1,8 +1,9 @@
-"""Call management API endpoints."""
+"""Call management API endpoints — list, live monitor, transfer, terminate."""
 
+import logging
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +11,7 @@ from app.database import get_db
 from app.models.call import Call, ConversationTurn
 from app.schemas.call import CallResponse, ConversationTurnResponse, OutboundCallRequest
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/calls", tags=["calls"])
 
 
@@ -34,11 +36,9 @@ async def list_calls(
     if date_to:
         query = query.where(Call.started_at <= datetime.fromisoformat(date_to))
 
-    # Count
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar() or 0
 
-    # Paginate
     query = query.offset((page - 1) * per_page).limit(per_page)
     result = await db.execute(query)
     calls = result.scalars().all()
@@ -50,7 +50,10 @@ async def list_calls(
     }
 
 
-@router.get("/active")
+# --- Static-path endpoints MUST come before /{call_id} ---
+
+
+@router.get("/active", summary="Get all currently active calls")
 async def get_active_calls(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Call)
@@ -61,38 +64,43 @@ async def get_active_calls(db: AsyncSession = Depends(get_db)):
     return {"calls": [CallResponse.model_validate(c) for c in calls]}
 
 
-@router.get("/{call_id}")
-async def get_call(call_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Call).where(Call.id == call_id))
-    call = result.scalar_one_or_none()
-    if not call:
-        return {"error": "Call not found"}, 404
-
+@router.get("/live", summary="Currently active calls with live transcript")
+async def get_live_calls(db: AsyncSession = Depends(get_db)):
+    """Return all currently active calls with their partial transcripts and metadata."""
     result = await db.execute(
-        select(ConversationTurn)
-        .where(ConversationTurn.call_id == call_id)
-        .order_by(ConversationTurn.sequence)
+        select(Call)
+        .where(Call.status.in_(["ringing", "in_progress"]))
+        .order_by(Call.started_at)
     )
-    turns = result.scalars().all()
+    calls = result.scalars().all()
 
-    return {
-        "call": CallResponse.model_validate(call),
-        "transcript": [ConversationTurnResponse.model_validate(t) for t in turns],
-    }
+    live_calls = []
+    for c in calls:
+        turns = (await db.execute(
+            select(ConversationTurn)
+            .where(ConversationTurn.call_id == c.id)
+            .order_by(ConversationTurn.sequence.desc())
+            .limit(10)
+        )).scalars().all()
+
+        elapsed = None
+        if c.started_at:
+            elapsed = int((datetime.utcnow() - c.started_at).total_seconds())
+
+        live_calls.append({
+            "call": CallResponse.model_validate(c),
+            "elapsed_seconds": elapsed,
+            "partial_transcript": c.partial_transcript,
+            "recent_turns": [
+                ConversationTurnResponse.model_validate(t)
+                for t in reversed(turns)
+            ],
+        })
+
+    return {"live_calls": live_calls, "count": len(live_calls)}
 
 
-@router.get("/{call_id}/transcript")
-async def get_call_transcript(call_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(ConversationTurn)
-        .where(ConversationTurn.call_id == call_id)
-        .order_by(ConversationTurn.sequence)
-    )
-    turns = result.scalars().all()
-    return {"turns": [ConversationTurnResponse.model_validate(t) for t in turns]}
-
-
-@router.post("/outbound", status_code=201)
+@router.post("/outbound", status_code=201, summary="Initiate an outbound call")
 async def initiate_outbound_call(
     request: OutboundCallRequest,
     db: AsyncSession = Depends(get_db),
@@ -128,3 +136,104 @@ async def initiate_outbound_call(
 
     except Exception as e:
         return {"error": f"Failed to initiate call: {e}"}
+
+
+# --- Parameterised endpoints last ---
+
+
+@router.get("/{call_id}", summary="Get a call by ID with transcript")
+async def get_call(call_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Call).where(Call.id == call_id))
+    call = result.scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+
+    result = await db.execute(
+        select(ConversationTurn)
+        .where(ConversationTurn.call_id == call_id)
+        .order_by(ConversationTurn.sequence)
+    )
+    turns = result.scalars().all()
+
+    return {
+        "call": CallResponse.model_validate(call),
+        "transcript": [ConversationTurnResponse.model_validate(t) for t in turns],
+    }
+
+
+@router.get("/{call_id}/transcript", summary="Get conversation transcript for a call")
+async def get_call_transcript(call_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(ConversationTurn)
+        .where(ConversationTurn.call_id == call_id)
+        .order_by(ConversationTurn.sequence)
+    )
+    turns = result.scalars().all()
+    return {"turns": [ConversationTurnResponse.model_validate(t) for t in turns]}
+
+
+@router.post("/{call_id}/transfer", summary="Transfer call to a human agent")
+async def transfer_call(
+    call_id: int,
+    transfer_to: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Transfer an active call to a human agent phone number."""
+    call = (await db.execute(
+        select(Call).where(Call.id == call_id)
+    )).scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+    if call.status not in ("ringing", "in_progress"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot transfer call in status '{call.status}'",
+        )
+
+    try:
+        from app.config import settings
+        from twilio.rest import Client
+
+        client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
+        twiml = f"<Response><Dial>{transfer_to}</Dial></Response>"
+        client.calls(call.twilio_call_sid).update(twiml=twiml)
+        call.resolution_status = "escalated"
+        logger.info("Transferred call %s to %s", call_id, transfer_to)
+    except Exception as exc:
+        logger.warning("Twilio transfer failed (non-prod?): %s", exc)
+        call.resolution_status = "escalated"
+
+    return {"transferred": True, "call_id": call_id, "transferred_to": transfer_to}
+
+
+@router.post("/{call_id}/terminate", summary="Terminate an active call from the dashboard")
+async def terminate_call(
+    call_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """End an active call from the dashboard (hangs up via Twilio)."""
+    call = (await db.execute(
+        select(Call).where(Call.id == call_id)
+    )).scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+    if call.status not in ("ringing", "in_progress"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot terminate call in status '{call.status}'",
+        )
+
+    try:
+        from app.config import settings
+        from twilio.rest import Client
+
+        client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
+        client.calls(call.twilio_call_sid).update(status="completed")
+    except Exception as exc:
+        logger.warning("Twilio terminate failed (non-prod?): %s", exc)
+
+    call.status = "completed"
+    call.ended_at = datetime.utcnow()
+    if call.started_at:
+        call.duration_seconds = int((call.ended_at - call.started_at).total_seconds())
+    return {"terminated": True, "call_id": call_id}

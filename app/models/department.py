@@ -13,8 +13,10 @@ class Department(Base):
     name: Mapped[str] = mapped_column(String(255), unique=True)
     code: Mapped[str] = mapped_column(String(20), unique=True)
     phone_extension: Mapped[str | None] = mapped_column(String(10))
+    twilio_phone_number: Mapped[str | None] = mapped_column(String(20))
     description: Mapped[str | None] = mapped_column(Text)
     operating_hours: Mapped[str | None] = mapped_column(Text)  # JSON string
+    languages: Mapped[str | None] = mapped_column(String(255))  # comma-separated ISO codes
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

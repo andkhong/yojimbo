@@ -1,7 +1,7 @@
 """Tests for the appointment reminder SMS service."""
 
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
