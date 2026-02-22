@@ -90,12 +90,14 @@ def test_access_token_extra_claims():
 @pytest.mark.asyncio
 async def test_login_returns_tokens(client, db):
     """Valid credentials return access + refresh tokens."""
-    db.add(DashboardUser(
-        username="tokenuser",
-        password_hash=hash_password("securepass1"),
-        name="Token User",
-        role="operator",
-    ))
+    db.add(
+        DashboardUser(
+            username="tokenuser",
+            password_hash=hash_password("securepass1"),
+            name="Token User",
+            role="operator",
+        )
+    )
     await db.flush()
 
     resp = await client.post(
@@ -113,12 +115,14 @@ async def test_login_returns_tokens(client, db):
 @pytest.mark.asyncio
 async def test_login_token_contains_correct_claims(client, db):
     """Access token contains user id and role."""
-    db.add(DashboardUser(
-        username="claimuser",
-        password_hash=hash_password("securepass1"),
-        name="Claim User",
-        role="supervisor",
-    ))
+    db.add(
+        DashboardUser(
+            username="claimuser",
+            password_hash=hash_password("securepass1"),
+            name="Claim User",
+            role="supervisor",
+        )
+    )
     await db.flush()
 
     resp = await client.post(
@@ -135,12 +139,14 @@ async def test_login_token_contains_correct_claims(client, db):
 @pytest.mark.asyncio
 async def test_login_wrong_password(client, db):
     """Wrong password returns 401."""
-    db.add(DashboardUser(
-        username="wrongpw",
-        password_hash=hash_password("correctpass1"),
-        name="Wrong PW",
-        role="operator",
-    ))
+    db.add(
+        DashboardUser(
+            username="wrongpw",
+            password_hash=hash_password("correctpass1"),
+            name="Wrong PW",
+            role="operator",
+        )
+    )
     await db.flush()
 
     resp = await client.post(
@@ -163,13 +169,15 @@ async def test_login_unknown_user(client):
 @pytest.mark.asyncio
 async def test_login_inactive_user_rejected(client, db):
     """Inactive user cannot log in."""
-    db.add(DashboardUser(
-        username="inactiveuser",
-        password_hash=hash_password("password1"),
-        name="Inactive",
-        role="operator",
-        is_active=False,
-    ))
+    db.add(
+        DashboardUser(
+            username="inactiveuser",
+            password_hash=hash_password("password1"),
+            name="Inactive",
+            role="operator",
+            is_active=False,
+        )
+    )
     await db.flush()
 
     resp = await client.post(
@@ -182,12 +190,14 @@ async def test_login_inactive_user_rejected(client, db):
 @pytest.mark.asyncio
 async def test_login_response_includes_user(client, db):
     """Login response includes user info."""
-    db.add(DashboardUser(
-        username="withinfo",
-        password_hash=hash_password("password1"),
-        name="With Info",
-        role="admin",
-    ))
+    db.add(
+        DashboardUser(
+            username="withinfo",
+            password_hash=hash_password("password1"),
+            name="With Info",
+            role="admin",
+        )
+    )
     await db.flush()
 
     resp = await client.post(
@@ -333,11 +343,13 @@ async def test_contact_search_no_results(client):
 @pytest.mark.asyncio
 async def test_contact_search_by_email(client, db):
     """Search matches email addresses."""
-    db.add(Contact(
-        phone_number="+15560004001",
-        name="Email Test",
-        email="searchtest@example.gov",
-    ))
+    db.add(
+        Contact(
+            phone_number="+15560004001",
+            name="Email Test",
+            email="searchtest@example.gov",
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/contacts/search?q=searchtest%40example")

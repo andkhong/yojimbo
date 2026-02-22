@@ -82,12 +82,14 @@ async def get_current_user_from_token(
     if payload.get("type") != "access":
         raise HTTPException(status_code=401, detail="Not an access token")
     user_id = int(payload["sub"])
-    user = (await db.execute(
-        select(DashboardUser).where(
-            DashboardUser.id == user_id,
-            DashboardUser.is_active.is_(True),
+    user = (
+        await db.execute(
+            select(DashboardUser).where(
+                DashboardUser.id == user_id,
+                DashboardUser.is_active.is_(True),
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="User not found or inactive")
     return user
@@ -110,12 +112,14 @@ async def require_auth(
     if request is not None:
         user_id = request.session.get("user_id")
         if user_id:
-            user = (await db.execute(
-                select(DashboardUser).where(
-                    DashboardUser.id == user_id,
-                    DashboardUser.is_active.is_(True),
+            user = (
+                await db.execute(
+                    select(DashboardUser).where(
+                        DashboardUser.id == user_id,
+                        DashboardUser.is_active.is_(True),
+                    )
                 )
-            )).scalar_one_or_none()
+            ).scalar_one_or_none()
             if user:
                 return user
 
