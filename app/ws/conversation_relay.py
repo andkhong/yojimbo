@@ -7,6 +7,7 @@ Twilio handles STT/TTS on its infrastructure. This handler receives transcribed
 caller speech as text and sends back text responses that Twilio converts to speech.
 """
 
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -103,6 +104,23 @@ async def handle_conversation_relay(websocket: WebSocket) -> None:
                         language=session.caller_language,
                     )
 
+                    # Broadcast transcript turn to live-call monitor WebSocket
+                    if call_id:
+                        from app.ws.monitor import broadcast_call_event
+
+                        asyncio.create_task(
+                            broadcast_call_event(
+                                "transcript_turn",
+                                {
+                                    "call_id": call_id,
+                                    "caller_text": caller_text,
+                                    "agent_response": response_text,
+                                    "language": session.caller_language,
+                                    "turn": session.turn_count,
+                                },
+                            )
+                        )
+
                 # Send response back via ConversationRelay
                 await websocket.send_text(
                     json.dumps({"type": "text", "token": response_text, "last": True})
@@ -157,7 +175,6 @@ async def handle_conversation_relay(websocket: WebSocket) -> None:
 
                     # Broadcast via monitor WebSocket
                     from app.ws.monitor import broadcast_call_event
-                    import asyncio
 
                     asyncio.create_task(
                         broadcast_call_event(
@@ -268,7 +285,6 @@ async def _handle_setup(message: dict) -> tuple[str | None, int | None, Conversa
 
         # Broadcast to live-call monitor
         from app.ws.monitor import broadcast_call_event
-        import asyncio
 
         asyncio.create_task(
             broadcast_call_event(

@@ -48,10 +48,74 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down Yojimbo")
 
 
+_OPENAPI_DESCRIPTION = """
+## Yojimbo — Government AI Receptionist Platform
+
+A **real-time, multilingual AI phone receptionist** built for city and county government.
+Powers 24/7 inbound call handling, appointment booking, and staff management with a full
+admin dashboard and compliance audit trail.
+
+### Key capabilities
+- 🌐 **Multilingual** — native Gemini AI in 10+ languages (no translation overhead)
+- 📞 **Live call monitor** — watch active calls, transfer or terminate from dashboard
+- 📅 **Appointment engine** — book, reschedule, cancel + automated SMS reminders
+- 📊 **Analytics** — call volume, resolution rates, SLA compliance, language breakdown
+- 🏛️ **Department management** — per-department routing, time slots, staff assignment
+- 📚 **Knowledge base** — FAQ entries injected into AI context per call
+- 🔐 **Compliance** — full audit log, role-based access (admin/supervisor/operator/readonly)
+- 🔑 **JWT auth** — Bearer token or session cookie for API and dashboard access
+
+### Authentication
+Most API endpoints work without authentication in development.
+For production, use:
+```
+POST /api/auth/token  →  { access_token, refresh_token }
+Authorization: Bearer <access_token>
+```
+
+### Rate limits (per IP)
+| Path prefix | Limit |
+|-------------|-------|
+| `/api/twilio/*` | 60 req/min |
+| `/api/auth/*` | 10 req/min |
+| `/api/*` | 300 req/min |
+"""
+
 app = FastAPI(
     title="Yojimbo",
-    description="Real-Time Multi-Lingual AI Agent Receptionist for Local Government",
-    version="0.1.0",
+    description=_OPENAPI_DESCRIPTION,
+    version="2.0.0",
+    contact={
+        "name": "Yojimbo Support",
+        "url": "https://github.com/andkhong/yojimbo",
+    },
+    license_info={
+        "name": "MIT",
+    },
+    openapi_tags=[
+        {"name": "dashboard", "description": "Authentication and dashboard stats"},
+        {"name": "calls", "description": "Call management and live monitor"},
+        {"name": "appointments", "description": "Appointment booking and management"},
+        {"name": "contacts", "description": "Contact records, history, merge, tags"},
+        {"name": "departments", "description": "Department CRUD, time slots, staff"},
+        {
+            "name": "agent-config",
+            "description": "AI agent configuration (system prompt, greeting, etc.)",
+        },
+        {"name": "audit-logs", "description": "Compliance audit trail"},
+        {"name": "users", "description": "Staff user management"},
+        {"name": "analytics", "description": "Call and appointment analytics"},
+        {"name": "reports", "description": "SLA compliance reports"},
+        {"name": "knowledge", "description": "Knowledge base FAQ entries"},
+        {"name": "reminders", "description": "Appointment reminder management"},
+        {
+            "name": "government-dashboard",
+            "description": "Government operational summary and compliance",
+        },
+        {"name": "messages", "description": "SMS message history"},
+        {"name": "health", "description": "Service health checks"},
+        {"name": "twilio-webhooks", "description": "Twilio webhook handlers (internal)"},
+    ],
     lifespan=lifespan,
 )
 

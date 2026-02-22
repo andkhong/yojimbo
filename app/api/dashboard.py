@@ -98,12 +98,14 @@ async def refresh_token(
         raise HTTPException(status_code=401, detail="Not a refresh token")
 
     user_id = int(payload["sub"])
-    user = (await db.execute(
-        select(DashboardUser).where(
-            DashboardUser.id == user_id,
-            DashboardUser.is_active.is_(True),
+    user = (
+        await db.execute(
+            select(DashboardUser).where(
+                DashboardUser.id == user_id,
+                DashboardUser.is_active.is_(True),
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="User not found or inactive")
 
