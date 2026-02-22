@@ -402,7 +402,7 @@ async def test_language_distribution(client, db):
     resp = await client.get("/api/analytics/languages?days=30")
     assert resp.status_code == 200
     data = resp.json()
-    lang_map = {l["language"]: l["count"] for l in data["languages"]}
+    lang_map = {lg["language"]: lg["count"] for lg in data["languages"]}
     assert lang_map["es"] == 2
     assert lang_map["en"] == 1
 
@@ -952,7 +952,6 @@ async def test_slot_availability(client, db):
     await db.flush()
 
     # Add a Monday slot
-    from datetime import date
 
     db.add(TimeSlot(
         department_id=dept.id,
@@ -964,17 +963,7 @@ async def test_slot_availability(client, db):
     ))
     await db.flush()
 
-    # Find the next Monday
-    today = date.today()
-    days_until_monday = (7 - today.weekday()) % 7
-    if days_until_monday == 0:
-        days_until_monday = 7
-    next_monday = today.replace(
-        day=today.day + days_until_monday
-        if today.day + days_until_monday <= 28
-        else today.day
-    )
-    # Simpler: just use a known Monday
+    # Use a known Monday
     next_monday_str = "2026-02-23"  # Monday
 
     resp = await client.get(f"/api/departments/{dept.id}/slots/availability?date={next_monday_str}")

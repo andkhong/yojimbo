@@ -1,7 +1,6 @@
 """Tests for Twilio webhook endpoints."""
 
 import pytest
-from unittest.mock import patch
 
 
 @pytest.mark.asyncio

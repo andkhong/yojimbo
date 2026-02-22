@@ -1,6 +1,5 @@
 """AI agent service: manages conversation with Google Gemini and function-calling."""
 
-import json
 import logging
 from datetime import date, datetime, timedelta
 

@@ -86,7 +86,6 @@ async def get_contact(
     recent_calls = calls_result.scalars().all()
 
     # Upcoming appointments
-    from datetime import datetime
 
     appts_result = await db.execute(
         select(Appointment)

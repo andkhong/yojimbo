@@ -15,15 +15,16 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.api.router import api_router
 from app.config import settings
 from app.database import get_db, init_db
+from app.middleware.audit import AuditLogMiddleware
 from app.models.appointment import Appointment
 from app.models.call import Call
 from app.models.contact import Contact
 from app.models.department import Department
-from app.models.message import SMSMessage
 from app.services import notification
 from app.ws.conversation_relay import handle_conversation_relay
 from app.ws.dashboard import handle_dashboard_ws
 from app.ws.manager import ConnectionManager
+from app.ws.monitor import handle_monitor_ws
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -55,6 +56,7 @@ app = FastAPI(
 
 # Middleware
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
+app.add_middleware(AuditLogMiddleware)
 
 # Static files and templates
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -75,6 +77,12 @@ async def ws_conversation_relay(websocket: WebSocket):
 @app.websocket("/ws/dashboard")
 async def ws_dashboard(websocket: WebSocket):
     await handle_dashboard_ws(websocket, ws_manager)
+
+
+@app.websocket("/ws/monitor")
+async def ws_monitor(websocket: WebSocket):
+    """Live-call monitor WebSocket. Broadcasts call events to admin dashboards."""
+    await handle_monitor_ws(websocket)
 
 
 # --- Server-rendered page routes ---

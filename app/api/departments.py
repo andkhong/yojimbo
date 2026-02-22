@@ -387,7 +387,6 @@ async def bulk_generate_slots(
     Example: create 30-min slots from 9am-5pm Mon-Fri.
     If replace_existing=True, any existing active slots for those days are deactivated first.
     """
-    from datetime import time as dt_time
 
     await _get_dept_or_404(department_id, db)
 

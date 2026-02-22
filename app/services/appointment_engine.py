@@ -1,15 +1,13 @@
 """Appointment booking engine: availability checking, booking, and cancellation."""
 
-import json
 import logging
 from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.appointment import Appointment, TimeSlot
 from app.models.contact import Contact
-from app.models.department import Department
 
 logger = logging.getLogger(__name__)
 

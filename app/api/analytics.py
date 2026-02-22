@@ -1,9 +1,13 @@
 """Analytics API — call volume, language breakdown, resolution rates, SLA, appointment stats."""
 
+import csv
+import io
+import json
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import case, extract, func, select
+from fastapi.responses import Response
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -364,3 +368,91 @@ async def sla_report(
         ),
         "departments": dept_results,
     }
+
+
+# ---------------------------------------------------------------------------
+# Export endpoint
+# ---------------------------------------------------------------------------
+
+
+@router.get("/export", summary="Export analytics snapshot as JSON or CSV")
+async def export_analytics(
+    db: AsyncSession = Depends(get_db),
+    format: str = Query("json", pattern="^(json|csv)$"),
+    days: int = Query(30, ge=1, le=365),
+):
+    """Export a complete analytics snapshot.
+
+    Returns call volume + language breakdown + resolution breakdown + appointment summary.
+    format=json (default) or format=csv.
+    """
+    cutoff = datetime.utcnow() - timedelta(days=days)
+
+    # Call volume by day
+    calls = (await db.execute(
+        select(Call).where(Call.started_at >= cutoff)
+    )).scalars().all()
+
+    daily: dict[str, int] = {}
+    lang_counts: dict[str, int] = {}
+    res_counts: dict[str, int] = {}
+    for c in calls:
+        day = c.started_at.strftime("%Y-%m-%d")
+        daily[day] = daily.get(day, 0) + 1
+        if c.detected_language:
+            lang_counts[c.detected_language] = lang_counts.get(c.detected_language, 0) + 1
+        if c.resolution_status:
+            res_counts[c.resolution_status] = res_counts.get(c.resolution_status, 0) + 1
+
+    # Appointments
+    appts = (await db.execute(
+        select(Appointment).where(Appointment.created_at >= cutoff)
+    )).scalars().all()
+    appt_status: dict[str, int] = {}
+    for a in appts:
+        appt_status[a.status] = appt_status.get(a.status, 0) + 1
+
+    payload = {
+        "generated_at": datetime.utcnow().isoformat(),
+        "days": days,
+        "calls": {
+            "total": len(calls),
+            "by_day": {k: daily[k] for k in sorted(daily)},
+            "by_language": lang_counts,
+            "by_resolution": res_counts,
+        },
+        "appointments": {
+            "total": len(appts),
+            "by_status": appt_status,
+        },
+    }
+
+    if format == "json":
+        return Response(
+            content=json.dumps(payload, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="analytics_{days}d.json"'},
+        )
+
+    # CSV: flatten into rows
+    rows = []
+    # Call volume rows
+    for day, count in sorted(daily.items()):
+        rows.append({"report": "call_volume", "key": day, "value": count})
+    for lang, count in sorted(lang_counts.items(), key=lambda x: -x[1]):
+        rows.append({"report": "language", "key": lang, "value": count})
+    for res, count in sorted(res_counts.items(), key=lambda x: -x[1]):
+        rows.append({"report": "resolution", "key": res, "value": count})
+    for status, count in sorted(appt_status.items(), key=lambda x: -x[1]):
+        rows.append({"report": "appointment_status", "key": status, "value": count})
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=["report", "key", "value"])
+    writer.writeheader()
+    writer.writerows(rows)
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="analytics_{days}d.csv"'},
+    )

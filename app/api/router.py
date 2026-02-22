@@ -11,6 +11,7 @@ from app.api import (
     contacts,
     dashboard,
     departments,
+    health,
     knowledge,
     messages,
     reminders,
@@ -41,3 +42,6 @@ api_router.include_router(analytics.reports_router)
 # Government Platform — Tier 3 (Knowledge Base, Reminders)
 api_router.include_router(knowledge.router)
 api_router.include_router(reminders.router)
+
+# Infrastructure
+api_router.include_router(health.router)
