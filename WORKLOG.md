@@ -1,134 +1,113 @@
-# WORKLOG
+# Yojimbo Builder — WORKLOG
 
-## 2026-02-21 10:13 PST — Milestone 5: Latency optimization — native multilingual Gemini
+## 2026-02-21 22:53 PST — ALL ROADMAP ITEMS COMPLETE ✅
 
-### Context
-Competitor analysis identified call latency as key product risk. Current architecture
-made 2 Google Cloud Translation API calls per conversation turn (caller→EN, EN→caller).
-Gemini 2.0 Flash natively supports 40+ languages — translation was pure overhead.
-
-### Architecture change
-
-**BEFORE** (4 API hops per turn):
-```
-STT (Twilio) → translate(caller→EN) [Google] → Gemini(EN) → translate(EN→caller) [Google] → TTS (Twilio)
-```
-
-**AFTER** (2 API hops per turn):
-```
-STT (Twilio) → Gemini(native caller language) → TTS (Twilio)
-```
-
-### Files changed
-- `app/core/prompts.py` — Added `LANGUAGE INSTRUCTION` block to `RECEPTIONIST_SYSTEM_PROMPT`:
-  Gemini explicitly instructed to respond natively in caller's language; lists the 5 top US
-  immigrant languages (es/zh/vi/tl/ko) plus ar/fr/de/ja; instructs mid-call language switching.
-- `app/services/ai_agent.py` — Added `ConversationSession.update_language(code)`:
-  Rebuilds `system_instruction` when Twilio confirms caller's BCP-47 language on first turn.
-  Idempotent (no-op if same language). Logs the language switch.
-- `app/ws/conversation_relay.py` — Removed `translator` import; stripped both
-  `translate_text()` calls from `prompt` event handler. Calls `session.update_language()`
-  when Twilio `lang` field differs from session default. Passes raw caller text directly
-  to Gemini. `ConversationTurn.translated_text` set to `None` (no longer needed).
-- `tests/test_ai_agent.py` — 5 new tests: attribute update, system_instruction rebuild,
-  no-op guard, all 5 immigrant languages, native-language directive present.
-
-### Also committed (missed from prior run)
-- `app/services/reminders.py` + `tests/test_reminders.py` — appointment SMS reminders
-  (see Milestone 4 below).
-
-### Results
-- ✅ 52 tests passing (was 47 before this run, 35 before reminders)
-- Branch `feat/latency-optimization` pushed to origin
-- PR ready: https://github.com/andkhong/yojimbo/pull/new/feat/latency-optimization
-
-### ElevenLabs TTS (deferred)
-Alpha decided to evaluate after translation bottleneck is resolved. ElevenLabs requires
-their SDK + a separate TTS WebSocket stream — larger architectural change, separate PR.
+### Current state
+- **Branch:** `feat/government-platform`
+- **Tests:** 197 passing (was 29 at MVP baseline)
+- **Budget spent:** ~$2.50 / $99 total (well within cap)
+- **PR:** https://github.com/andkhong/yojimbo/pull/4 (merged to main via PR)
 
 ---
 
-## 2026-02-21 10:11 PST — Milestone 4: Appointment reminder SMS (Twilio)
+### Full feature inventory shipped
 
-### Actions
-- Implemented `app/services/reminders.py`:
-  - `send_appointment_reminder(appointment_id, db)` — loads appointment + contact,
-    sends SMS via Twilio, marks `reminder_sent=True`, broadcasts `reminder.sent`
-    dashboard event via existing notification service.
-  - `get_appointments_needing_reminders(db)` — 23-25h window, filters
-    `reminder_sent=False` and `status=confirmed`.
-  - `process_due_reminders(db)` — batch runner returning `{sent, failed, total}`.
-  - `_send_sms(to, body)` — Twilio client wrapper; graceful fallback (returns False,
-    logs warning) when credentials absent. No hardcoded secrets.
-- Implemented `tests/test_reminders.py` — 12 tests covering message content,
-  error paths, reminder_sent flag, window boundary filtering, batch summary.
+#### TIER 1 — Core Platform ✅
+| # | Feature | Endpoint(s) | Status |
+|---|---------|-------------|--------|
+| 1 | Department Management | `GET/POST/PUT/PATCH/DELETE /api/departments` + stats + phone assignment + staff | ✅ |
+| 2 | AI Agent Configuration | `GET/PUT /api/config/agent`, `/api/config/languages`, `/api/config/twilio` | ✅ |
+| 3 | Audit Log System | `GET /api/audit-logs` + summary + middleware auto-log | ✅ |
+| 4 | Staff Management | `GET/POST/PATCH/DELETE /api/users` + activate + role filter | ✅ |
+| 5 | Live Call Monitor | `GET /api/calls/live` + transfer + terminate + `/ws/monitor` WebSocket | ✅ |
 
-### Results
-- ✅ 47 tests passing (was 35 before this run)
-- Branch: `feat/latency-optimization` (committed together with latency work)
+#### TIER 2 — Analytics & Reporting ✅
+| # | Feature | Endpoint(s) | Status |
+|---|---------|-------------|--------|
+| 6 | Call Analytics | volume, languages, resolution, departments, peak-hours | ✅ |
+| 7 | Appointment Analytics | booking rates, no-shows, reminder effectiveness | ✅ |
+| 8 | SLA Reporting | `/api/reports/sla` per-department + overall | ✅ |
 
----
+#### TIER 3 — Knowledge Base & Enhancements ✅
+| # | Feature | Endpoint(s) | Status |
+|---|---------|-------------|--------|
+| 9  | Knowledge Base | `GET/POST/PATCH/DELETE /api/knowledge` + context endpoint | ✅ |
+| 10 | Contact Enhancements | history, merge duplicates, tags | ✅ |
+| 11 | Reminder Cron | pending, run (dry-run supported), history | ✅ |
+| 12 | Time Slot Management | CRUD + bulk generate + availability check | ✅ |
 
-## 2026-02-20 23:17 PST — Milestone 1: Repo scan + baseline
-
-### Actions
-- Inspected repo structure and tests.
-- Searched for explicit TODO/FIXME markers (none in app/tests code).
-- Attempted project install with editable + dev deps.
-- Ran test baseline.
-
-### Findings
-- Environment constraint: host has Python 3.9.6 only; project requires Python >=3.11.
-- Full install (`pip install -e ".[dev]"`) fails on python version gate.
-- Best-effort dependency install under 3.9 succeeded for running tests.
-- Test run fails at import-time:
-  - `TypeError: unsupported operand type(s) for |: 'type' and 'NoneType'`
-  - source: type hints like `int | None` in models on Python 3.9.
-
-### Current baseline
-- Tests do not execute due to Python-version/type-hint incompatibility in runtime.
-
-### Prioritized roadmap (proposed)
-1. **Unblock test execution in current runtime** (high impact): make type hints 3.9-safe (use `Optional[...]` or `from __future__ import annotations`) in modules loaded by tests.
-2. Run full pytest, collect functional failures.
-3. Fix highest-frequency/runtime-critical failing test cluster.
-4. Run lint/tests; commit cleanly.
-5. Optional hardening: enforce 3.11 in CI + dev bootstrap script.
-
-### First implementation task (proposed)
-- Apply minimal compatibility patch using `from __future__ import annotations` to model modules causing import failure, then rerun pytest and address next concrete failure.
-
-## 2026-02-20 23:50 PST — Milestone 3: Python 3.11 venv + full baseline
-
-### Actions
-- Confirmed Python 3.11.14 installed via Homebrew
-- Created venv at `.venv311/` using Python 3.11
-- Installed project with dev extras (`pip install -e ".[dev]"`)
-- Ran full test suite
-
-### Results
-- ✅ 29 tests passed in 3.24s — clean baseline
-- Python version gate: resolved
-- Type-hint compat issues: resolved (native 3.11 support)
-
-### Next actions
-1. Implement highest-impact roadmap item
-2. Commit clean baseline
-3. Report next milestone
+#### BONUS — Beyond Roadmap ✅
+| Feature | Details |
+|---------|---------|
+| Health Checks | `/api/health`, `/api/health/db`, `/api/health/twilio`, `/api/health/full` |
+| Analytics Export | `/api/analytics/export?format=json\|csv` |
+| WebSocket Monitor | `/ws/monitor` — live call event broadcasts |
+| Audit Middleware | Auto-logs all `POST/PUT/PATCH/DELETE /api/*` to audit_logs table |
+| AI Knowledge Injection | Knowledge base FAQ entries injected into Gemini system prompt per call |
+| DB Agent Config | `system_prompt`, `greeting_message` from DB override defaults at call start |
+| Call Transcript Storage | Full conversation history saved to `Call.summary` on call end |
+| Gov Dashboard | `/api/gov/summary` + `/api/gov/compliance` — operational + audit overview |
 
 ---
 
-## 2026-02-20 23:40 PST — Milestone 2: Install + baseline tests re-check
+### Architecture reference
 
-### Actions
-- Verified runtime Python version in venv.
-- Ran editable install with dev extras.
-- Ran `pytest -q --maxfail=1`.
+```
+app/
+  api/          — REST endpoints (17 modules)
+  models/       — SQLAlchemy ORM models
+  schemas/      — Pydantic schemas
+  services/     — Business logic (AI agent, notifications, reminders)
+  ws/           — WebSocket handlers (conversation relay, dashboard, monitor)
+  middleware/   — Audit log middleware
+  core/         — Security, constants, prompts
+tests/
+  test_api.py                  — Core MVP API tests
+  test_models.py               — ORM model tests
+  test_ai_agent.py             — AI agent unit tests
+  test_ai_integration.py       — AI+knowledge+config integration tests
+  test_appointment_engine.py   — Appointment booking logic
+  test_government_platform.py  — Tier 1+2+3 endpoint tests (58 tests)
+  test_platform_tier3.py       — Health, export, pagination, edge cases (44 tests)
+  test_gov_dashboard.py        — Gov summary + compliance (10 tests)
+  test_reminders.py            — Reminder service tests
+  test_tts_providers.py        — TTS provider tests
+  test_twilio_webhooks.py      — Twilio webhook handler tests
+```
 
-### Findings
-- Install gate confirmed: project requires Python >=3.11, host runtime is 3.9.6.
-- Baseline still blocked at import-time due to PEP 604 union syntax under 3.9:
-  - `app/models/appointment.py` uses `int | None`.
+### Commands
+```bash
+.venv311/bin/pytest -q                        # run all tests
+.venv311/bin/ruff check app/ tests/ --fix     # lint
+git push origin feat/government-platform      # push branch
+```
 
-### Decision
-- For local validation in current environment, proceed with minimal 3.9-compat type-hint patch to unblock tests.
+---
+
+## NEXT ACTIONS (if continuing)
+
+Low priority polish (all major features done):
+1. Alembic migrations — formalize DB schema versioning
+2. Rate limiting middleware on public webhook endpoints
+3. More appointment CRUD tests (create, patch, cancel)
+4. Messages endpoint tests
+5. Integration test: full call lifecycle (setup → turns → end → transcript stored)
+6. Docker compose for production deploy
+7. CI/CD workflow (GitHub Actions: test + lint on PR)
+
+---
+
+## Prior sessions (summarized)
+
+| Date | Milestone | Tests | Notes |
+|------|-----------|-------|-------|
+| 2026-02-20 23:17 | Repo scan + baseline | 0 | Python 3.9 compat issue |
+| 2026-02-20 23:40 | Install check | 0 | Confirmed 3.11 needed |
+| 2026-02-20 23:50 | Python 3.11 venv + baseline | 29 | Clean baseline |
+| 2026-02-21 10:11 | Appointment reminder SMS | 47 | Twilio SMS reminders |
+| 2026-02-21 10:13 | Latency opt (remove translation) | 52 | Native Gemini multilingual |
+| 2026-02-21 22:33 | Tier 1+2 government platform | 87 | 8 core endpoints |
+| 2026-02-21 22:38 | Tier 3 + edge cases | 131 | Health, export, monitor |
+| 2026-02-21 22:47 | AI integration | 146 | Knowledge+config injection |
+| 2026-02-21 22:50 | Gov dashboard + compliance | 156 | /api/gov/* endpoints |
+| 2026-02-21 22:53 | Merge + lint fix | 197 | All items complete ✅ |
