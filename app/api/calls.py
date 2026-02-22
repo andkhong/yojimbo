@@ -68,34 +68,39 @@ async def get_active_calls(db: AsyncSession = Depends(get_db)):
 async def get_live_calls(db: AsyncSession = Depends(get_db)):
     """Return all currently active calls with their partial transcripts and metadata."""
     result = await db.execute(
-        select(Call)
-        .where(Call.status.in_(["ringing", "in_progress"]))
-        .order_by(Call.started_at)
+        select(Call).where(Call.status.in_(["ringing", "in_progress"])).order_by(Call.started_at)
     )
     calls = result.scalars().all()
 
     live_calls = []
     for c in calls:
-        turns = (await db.execute(
-            select(ConversationTurn)
-            .where(ConversationTurn.call_id == c.id)
-            .order_by(ConversationTurn.sequence.desc())
-            .limit(10)
-        )).scalars().all()
+        turns = (
+            (
+                await db.execute(
+                    select(ConversationTurn)
+                    .where(ConversationTurn.call_id == c.id)
+                    .order_by(ConversationTurn.sequence.desc())
+                    .limit(10)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         elapsed = None
         if c.started_at:
             elapsed = int((datetime.utcnow() - c.started_at).total_seconds())
 
-        live_calls.append({
-            "call": CallResponse.model_validate(c),
-            "elapsed_seconds": elapsed,
-            "partial_transcript": c.partial_transcript,
-            "recent_turns": [
-                ConversationTurnResponse.model_validate(t)
-                for t in reversed(turns)
-            ],
-        })
+        live_calls.append(
+            {
+                "call": CallResponse.model_validate(c),
+                "elapsed_seconds": elapsed,
+                "partial_transcript": c.partial_transcript,
+                "recent_turns": [
+                    ConversationTurnResponse.model_validate(t) for t in reversed(turns)
+                ],
+            }
+        )
 
     return {"live_calls": live_calls, "count": len(live_calls)}
 
@@ -179,9 +184,7 @@ async def transfer_call(
     db: AsyncSession = Depends(get_db),
 ):
     """Transfer an active call to a human agent phone number."""
-    call = (await db.execute(
-        select(Call).where(Call.id == call_id)
-    )).scalar_one_or_none()
+    call = (await db.execute(select(Call).where(Call.id == call_id))).scalar_one_or_none()
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
     if call.status not in ("ringing", "in_progress"):
@@ -212,9 +215,7 @@ async def terminate_call(
     db: AsyncSession = Depends(get_db),
 ):
     """End an active call from the dashboard (hangs up via Twilio)."""
-    call = (await db.execute(
-        select(Call).where(Call.id == call_id)
-    )).scalar_one_or_none()
+    call = (await db.execute(select(Call).where(Call.id == call_id))).scalar_one_or_none()
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
     if call.status not in ("ringing", "in_progress"):

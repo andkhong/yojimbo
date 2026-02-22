@@ -16,9 +16,7 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket) -> None:
         await websocket.accept()
         self.active_connections.append(websocket)
-        logger.info(
-            "Dashboard WebSocket connected (%d total)", len(self.active_connections)
-        )
+        logger.info("Dashboard WebSocket connected (%d total)", len(self.active_connections))
 
     def disconnect(self, websocket: WebSocket) -> None:
         if websocket in self.active_connections:

@@ -20,6 +20,7 @@ from app.services.reminders import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 async def _make_contact(db, phone="+15550020001", name="Test User"):
     return await get_or_create_contact(db, phone, name=name)
 

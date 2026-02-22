@@ -170,6 +170,7 @@ async def test_lookup_appointments_unknown_phone(db):
 # Conflict detection tests
 # ---------------------------------------------------------------------------
 
+
 def _next_weekday(weekday: int = 0) -> date:
     """Return the next occurrence of the given weekday (0=Mon … 4=Fri)."""
     today = date.today()
@@ -289,20 +290,32 @@ async def test_conflict_check_concurrent_limit_hit(seeded_db):
 
     # Fill both concurrent slots
     await book_appointment(
-        db, contact_id=c1.id, department_id=dept.id,
-        scheduled_start=start, scheduled_end=end, title="Slot 1",
+        db,
+        contact_id=c1.id,
+        department_id=dept.id,
+        scheduled_start=start,
+        scheduled_end=end,
+        title="Slot 1",
     )
     await book_appointment(
-        db, contact_id=c2.id, department_id=dept.id,
-        scheduled_start=start, scheduled_end=end, title="Slot 2",
+        db,
+        contact_id=c2.id,
+        department_id=dept.id,
+        scheduled_start=start,
+        scheduled_end=end,
+        title="Slot 2",
     )
     await db.commit()
 
     # Third booking must raise
     with pytest.raises(BookingConflictError) as exc_info:
         await book_appointment(
-            db, contact_id=c3.id, department_id=dept.id,
-            scheduled_start=start, scheduled_end=end, title="Slot 3 - should fail",
+            db,
+            contact_id=c3.id,
+            department_id=dept.id,
+            scheduled_start=start,
+            scheduled_end=end,
+            title="Slot 3 - should fail",
         )
 
     assert "fully booked" in str(exc_info.value).lower()
@@ -328,19 +341,30 @@ async def test_conflict_check_skip_bypass(seeded_db):
 
     # Fill both concurrent slots normally
     await book_appointment(
-        db, contact_id=c1.id, department_id=dept.id,
-        scheduled_start=start, scheduled_end=end, title="Bypass slot 1",
+        db,
+        contact_id=c1.id,
+        department_id=dept.id,
+        scheduled_start=start,
+        scheduled_end=end,
+        title="Bypass slot 1",
     )
     await book_appointment(
-        db, contact_id=c2.id, department_id=dept.id,
-        scheduled_start=start, scheduled_end=end, title="Bypass slot 2",
+        db,
+        contact_id=c2.id,
+        department_id=dept.id,
+        scheduled_start=start,
+        scheduled_end=end,
+        title="Bypass slot 2",
     )
     await db.commit()
 
     # Third booking with bypass should succeed without raising
     appt = await book_appointment(
-        db, contact_id=c3.id, department_id=dept.id,
-        scheduled_start=start, scheduled_end=end,
+        db,
+        contact_id=c3.id,
+        department_id=dept.id,
+        scheduled_start=start,
+        scheduled_end=end,
         title="Bypass slot 3 - override",
         skip_conflict_check=True,
     )
@@ -383,16 +407,24 @@ async def test_conflict_error_message_includes_timestamp(seeded_db):
     end = start + timedelta(minutes=30)
 
     await book_appointment(
-        db, contact_id=contact.id, department_id=tiny_dept.id,
-        scheduled_start=start, scheduled_end=end, title="Filler",
+        db,
+        contact_id=contact.id,
+        department_id=tiny_dept.id,
+        scheduled_start=start,
+        scheduled_end=end,
+        title="Filler",
     )
     await db.commit()
 
     contact2 = await get_or_create_contact(db, "+15550011111")
     with pytest.raises(BookingConflictError) as exc_info:
         await book_appointment(
-            db, contact_id=contact2.id, department_id=tiny_dept.id,
-            scheduled_start=start, scheduled_end=end, title="Conflict",
+            db,
+            contact_id=contact2.id,
+            department_id=tiny_dept.id,
+            scheduled_start=start,
+            scheduled_end=end,
+            title="Conflict",
         )
 
     error_msg = str(exc_info.value)
@@ -440,15 +472,23 @@ async def test_conflict_check_adjacent_slots_do_not_conflict(seeded_db):
     end2 = start2 + timedelta(minutes=30)
 
     appt1 = await book_appointment(
-        db, contact_id=contact.id, department_id=adj_dept.id,
-        scheduled_start=start1, scheduled_end=end1, title="Adjacent slot 1",
+        db,
+        contact_id=contact.id,
+        department_id=adj_dept.id,
+        scheduled_start=start1,
+        scheduled_end=end1,
+        title="Adjacent slot 1",
     )
     await db.commit()
 
     # This must NOT raise even though max_concurrent=1
     appt2 = await book_appointment(
-        db, contact_id=contact.id, department_id=adj_dept.id,
-        scheduled_start=start2, scheduled_end=end2, title="Adjacent slot 2",
+        db,
+        contact_id=contact.id,
+        department_id=adj_dept.id,
+        scheduled_start=start2,
+        scheduled_end=end2,
+        title="Adjacent slot 2",
     )
     assert appt1.id is not None
     assert appt2.id is not None

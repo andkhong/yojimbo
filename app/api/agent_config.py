@@ -34,9 +34,9 @@ async def update_agent_config(
 ) -> AgentConfigResponse:
     """Upsert agent configuration key/value pairs into the database."""
     for key, value in data.updates.items():
-        existing = (await db.execute(
-            select(AgentConfig).where(AgentConfig.key == key)
-        )).scalar_one_or_none()
+        existing = (
+            await db.execute(select(AgentConfig).where(AgentConfig.key == key))
+        ).scalar_one_or_none()
         if existing:
             existing.value = value
             if data.updated_by:
@@ -65,9 +65,9 @@ async def get_config_key(key: str, db: AsyncSession = Depends(get_db)):
     """Return a single config entry by key."""
     if key not in VALID_CONFIG_KEYS:
         raise HTTPException(status_code=400, detail=f"Invalid config key: {key}")
-    entry = (await db.execute(
-        select(AgentConfig).where(AgentConfig.key == key)
-    )).scalar_one_or_none()
+    entry = (
+        await db.execute(select(AgentConfig).where(AgentConfig.key == key))
+    ).scalar_one_or_none()
     if not entry:
         raise HTTPException(status_code=404, detail=f"Config key '{key}' not set")
     return {"key": key, "value": entry.value, "updated_at": entry.updated_at}
@@ -76,9 +76,9 @@ async def get_config_key(key: str, db: AsyncSession = Depends(get_db)):
 @router.delete("/agent/{key}", status_code=204, summary="Delete a configuration entry")
 async def delete_config_key(key: str, db: AsyncSession = Depends(get_db)):
     """Delete a config key from the database (resets to default behaviour)."""
-    entry = (await db.execute(
-        select(AgentConfig).where(AgentConfig.key == key)
-    )).scalar_one_or_none()
+    entry = (
+        await db.execute(select(AgentConfig).where(AgentConfig.key == key))
+    ).scalar_one_or_none()
     if not entry:
         raise HTTPException(status_code=404, detail=f"Config key '{key}' not set")
     await db.delete(entry)
@@ -89,9 +89,9 @@ async def delete_config_key(key: str, db: AsyncSession = Depends(get_db)):
 async def get_language_config(db: AsyncSession = Depends(get_db)):
     """Return language-related configuration settings."""
     keys = ["supported_languages", "language_detection_enabled"]
-    entries = (await db.execute(
-        select(AgentConfig).where(AgentConfig.key.in_(keys))
-    )).scalars().all()
+    entries = (
+        (await db.execute(select(AgentConfig).where(AgentConfig.key.in_(keys)))).scalars().all()
+    )
     return {e.key: e.value for e in entries}
 
 
@@ -109,9 +109,9 @@ async def update_language_config(
         updates["language_detection_enabled"] = language_detection_enabled
 
     for key, value in updates.items():
-        existing = (await db.execute(
-            select(AgentConfig).where(AgentConfig.key == key)
-        )).scalar_one_or_none()
+        existing = (
+            await db.execute(select(AgentConfig).where(AgentConfig.key == key))
+        ).scalar_one_or_none()
         if existing:
             existing.value = value
         else:
@@ -125,7 +125,7 @@ async def update_language_config(
 async def get_twilio_config(db: AsyncSession = Depends(get_db)):
     """Return Twilio-related configuration (phone numbers, webhooks)."""
     keys = ["transfer_phone_number"]
-    entries = (await db.execute(
-        select(AgentConfig).where(AgentConfig.key.in_(keys))
-    )).scalars().all()
+    entries = (
+        (await db.execute(select(AgentConfig).where(AgentConfig.key.in_(keys)))).scalars().all()
+    )
     return {e.key: e.value for e in entries}

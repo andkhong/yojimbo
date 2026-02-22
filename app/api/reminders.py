@@ -24,41 +24,47 @@ async def list_pending_reminders(
     now = datetime.utcnow()
     cutoff = now + timedelta(hours=hours_ahead)
 
-    appts = (await db.execute(
-        select(Appointment)
-        .where(
-            Appointment.status == "confirmed",
-            Appointment.reminder_sent.is_(False),
-            Appointment.scheduled_start >= now,
-            Appointment.scheduled_start <= cutoff,
+    appts = (
+        (
+            await db.execute(
+                select(Appointment)
+                .where(
+                    Appointment.status == "confirmed",
+                    Appointment.reminder_sent.is_(False),
+                    Appointment.scheduled_start >= now,
+                    Appointment.scheduled_start <= cutoff,
+                )
+                .order_by(Appointment.scheduled_start)
+            )
         )
-        .order_by(Appointment.scheduled_start)
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
     # Enrich with contact info
     contact_ids = list({a.contact_id for a in appts})
     contacts = {
         c.id: c
-        for c in (await db.execute(
-            select(Contact).where(Contact.id.in_(contact_ids))
-        )).scalars().all()
+        for c in (await db.execute(select(Contact).where(Contact.id.in_(contact_ids))))
+        .scalars()
+        .all()
     }
 
     pending = []
     for a in appts:
         contact = contacts.get(a.contact_id)
-        pending.append({
-            "appointment_id": a.id,
-            "title": a.title,
-            "scheduled_start": a.scheduled_start.isoformat(),
-            "language": a.language,
-            "contact_id": a.contact_id,
-            "contact_name": contact.name if contact else None,
-            "contact_phone": contact.phone_number if contact else None,
-            "hours_until": round(
-                (a.scheduled_start - now).total_seconds() / 3600, 1
-            ),
-        })
+        pending.append(
+            {
+                "appointment_id": a.id,
+                "title": a.title,
+                "scheduled_start": a.scheduled_start.isoformat(),
+                "language": a.language,
+                "contact_id": a.contact_id,
+                "contact_name": contact.name if contact else None,
+                "contact_phone": contact.phone_number if contact else None,
+                "hours_until": round((a.scheduled_start - now).total_seconds() / 3600, 1),
+            }
+        )
 
     return {
         "hours_ahead": hours_ahead,
@@ -76,10 +82,14 @@ async def reminder_history(
     """Return appointments where reminders were already sent (last N days)."""
     cutoff = datetime.utcnow() - timedelta(days=days)
 
-    query = select(Appointment).where(
-        Appointment.reminder_sent.is_(True),
-        Appointment.created_at >= cutoff,
-    ).order_by(Appointment.scheduled_start.desc())
+    query = (
+        select(Appointment)
+        .where(
+            Appointment.reminder_sent.is_(True),
+            Appointment.created_at >= cutoff,
+        )
+        .order_by(Appointment.scheduled_start.desc())
+    )
 
     if department_id:
         query = query.where(Appointment.department_id == department_id)
@@ -89,9 +99,9 @@ async def reminder_history(
     contact_ids = list({a.contact_id for a in appts})
     contacts = {
         c.id: c
-        for c in (await db.execute(
-            select(Contact).where(Contact.id.in_(contact_ids))
-        )).scalars().all()
+        for c in (await db.execute(select(Contact).where(Contact.id.in_(contact_ids))))
+        .scalars()
+        .all()
     }
 
     return {
@@ -105,7 +115,8 @@ async def reminder_history(
                 "scheduled_start": a.scheduled_start.isoformat(),
                 "contact_id": a.contact_id,
                 "contact_name": contacts.get(a.contact_id, None) and contacts[a.contact_id].name,
-                "contact_phone": contacts.get(a.contact_id, None) and contacts[a.contact_id].phone_number,
+                "contact_phone": contacts.get(a.contact_id, None)
+                and contacts[a.contact_id].phone_number,
             }
             for a in appts
         ],
@@ -126,22 +137,27 @@ async def run_reminders(
     now = datetime.utcnow()
     cutoff = now + timedelta(hours=hours_ahead)
 
-    appts = (await db.execute(
-        select(Appointment)
-        .where(
-            Appointment.status == "confirmed",
-            Appointment.reminder_sent.is_(False),
-            Appointment.scheduled_start >= now,
-            Appointment.scheduled_start <= cutoff,
+    appts = (
+        (
+            await db.execute(
+                select(Appointment).where(
+                    Appointment.status == "confirmed",
+                    Appointment.reminder_sent.is_(False),
+                    Appointment.scheduled_start >= now,
+                    Appointment.scheduled_start <= cutoff,
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
     contact_ids = list({a.contact_id for a in appts})
     contacts = {
         c.id: c
-        for c in (await db.execute(
-            select(Contact).where(Contact.id.in_(contact_ids))
-        )).scalars().all()
+        for c in (await db.execute(select(Contact).where(Contact.id.in_(contact_ids))))
+        .scalars()
+        .all()
     }
 
     sent = []
@@ -171,21 +187,25 @@ async def run_reminders(
                     body=msg_body,
                 )
                 appt.reminder_sent = True
-                sent.append({
-                    "appointment_id": appt.id,
-                    "contact_phone": contact.phone_number,
-                    "message": msg_body,
-                })
+                sent.append(
+                    {
+                        "appointment_id": appt.id,
+                        "contact_phone": contact.phone_number,
+                        "message": msg_body,
+                    }
+                )
             except Exception as exc:
                 logger.warning("Reminder send failed for appt %d: %s", appt.id, exc)
                 failed.append({"appointment_id": appt.id, "reason": str(exc)})
         else:
-            sent.append({
-                "appointment_id": appt.id,
-                "contact_phone": contact.phone_number,
-                "message": msg_body,
-                "dry_run": True,
-            })
+            sent.append(
+                {
+                    "appointment_id": appt.id,
+                    "contact_phone": contact.phone_number,
+                    "message": msg_body,
+                    "dry_run": True,
+                }
+            )
 
     if not dry_run:
         await db.flush()

@@ -6,7 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import authenticate_user, get_current_user
+from app.core.security import (
+    authenticate_user,
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    get_current_user,
+)
 from app.database import get_db
 from app.models.appointment import Appointment
 from app.models.call import Call
@@ -17,6 +23,11 @@ from app.schemas.auth import LoginRequest, UserResponse
 from app.schemas.dashboard import ActivityItem, DashboardStats
 
 router = APIRouter(tags=["dashboard"])
+
+
+# ---------------------------------------------------------------------------
+# Token authentication
+# ---------------------------------------------------------------------------
 
 
 @router.post("/api/auth/login")
@@ -44,22 +55,78 @@ async def get_me(user: DashboardUser = Depends(get_current_user)):
     return {"user": UserResponse.model_validate(user)}
 
 
+@router.post("/api/auth/token", summary="Issue JWT access + refresh tokens")
+async def issue_token(
+    data: LoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Authenticate with username/password and receive JWT tokens.
+
+    Returns:
+    - `access_token` — short-lived (8 hours), use as `Authorization: Bearer <token>`
+    - `refresh_token` — long-lived (30 days), use to re-issue access tokens
+    - `token_type` — always "bearer"
+    """
+    user = await authenticate_user(db, data.username, data.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    access = create_access_token(subject=user.id, role=user.role)
+    refresh = create_refresh_token(subject=user.id)
+
+    return {
+        "access_token": access,
+        "refresh_token": refresh,
+        "token_type": "bearer",
+        "expires_in": 60 * 60 * 8,  # seconds
+        "user": UserResponse.model_validate(user),
+    }
+
+
+@router.post("/api/auth/refresh", summary="Refresh an expired access token")
+async def refresh_token(
+    refresh_token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Exchange a refresh token for a new access token.
+
+    The refresh token must be valid and not expired (30-day window).
+    """
+    payload = decode_token(refresh_token)
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Not a refresh token")
+
+    user_id = int(payload["sub"])
+    user = (await db.execute(
+        select(DashboardUser).where(
+            DashboardUser.id == user_id,
+            DashboardUser.is_active.is_(True),
+        )
+    )).scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found or inactive")
+
+    new_access = create_access_token(subject=user.id, role=user.role)
+    return {
+        "access_token": new_access,
+        "token_type": "bearer",
+        "expires_in": 60 * 60 * 8,
+    }
+
+
 @router.get("/api/dashboard/stats")
 async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Today's calls
     today_calls = (
-        await db.execute(
-            select(func.count()).where(Call.started_at >= today_start)
-        )
+        await db.execute(select(func.count()).where(Call.started_at >= today_start))
     ).scalar() or 0
 
     # Active calls
     active_calls = (
-        await db.execute(
-            select(func.count()).where(Call.status.in_(["ringing", "in_progress"]))
-        )
+        await db.execute(select(func.count()).where(Call.status.in_(["ringing", "in_progress"])))
     ).scalar() or 0
 
     # Today's appointments
@@ -74,9 +141,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     ).scalar() or 0
 
     # Total contacts
-    total_contacts = (
-        await db.execute(select(func.count()).select_from(Contact))
-    ).scalar() or 0
+    total_contacts = (await db.execute(select(func.count()).select_from(Contact))).scalar() or 0
 
     # Language breakdown from today's calls
     lang_rows = (
@@ -117,10 +182,10 @@ async def get_activity_feed(
 
     # Recent calls
     calls = (
-        await db.execute(
-            select(Call).order_by(Call.started_at.desc()).limit(limit)
-        )
-    ).scalars().all()
+        (await db.execute(select(Call).order_by(Call.started_at.desc()).limit(limit)))
+        .scalars()
+        .all()
+    )
     for c in calls:
         activities.append(
             ActivityItem(
@@ -134,10 +199,10 @@ async def get_activity_feed(
 
     # Recent appointments
     appts = (
-        await db.execute(
-            select(Appointment).order_by(Appointment.created_at.desc()).limit(limit)
-        )
-    ).scalars().all()
+        (await db.execute(select(Appointment).order_by(Appointment.created_at.desc()).limit(limit)))
+        .scalars()
+        .all()
+    )
     for a in appts:
         activities.append(
             ActivityItem(
@@ -151,10 +216,10 @@ async def get_activity_feed(
 
     # Recent SMS
     messages = (
-        await db.execute(
-            select(SMSMessage).order_by(SMSMessage.created_at.desc()).limit(limit)
-        )
-    ).scalars().all()
+        (await db.execute(select(SMSMessage).order_by(SMSMessage.created_at.desc()).limit(limit)))
+        .scalars()
+        .all()
+    )
     for m in messages:
         direction = "Received" if m.direction == "inbound" else "Sent"
         activities.append(

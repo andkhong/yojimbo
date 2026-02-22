@@ -110,11 +110,13 @@ async def handle_inbound_sms(
         message_sid=MessageSid,
     )
 
-    await notification.notify_sms_received({
-        "from": From,
-        "body": Body[:100],
-        "message_sid": MessageSid,
-    })
+    await notification.notify_sms_received(
+        {
+            "from": From,
+            "body": Body[:100],
+            "message_sid": MessageSid,
+        }
+    )
 
     twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -135,9 +137,7 @@ async def handle_status_callback(
     """Handle call status callback from Twilio."""
     logger.info("Call status update: %s -> %s", CallSid, CallStatus)
 
-    result = await db.execute(
-        select(Call).where(Call.twilio_call_sid == CallSid)
-    )
+    result = await db.execute(select(Call).where(Call.twilio_call_sid == CallSid))
     call = result.scalar_one_or_none()
 
     if call:

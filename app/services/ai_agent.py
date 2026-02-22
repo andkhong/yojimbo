@@ -108,7 +108,9 @@ class ConversationSession:
         )
         logger.info(
             "Session %s language updated to %s (%s)",
-            self.call_sid, language_code, lang_name,
+            self.call_sid,
+            language_code,
+            lang_name,
         )
 
     def _get_tools(self):
@@ -117,8 +119,7 @@ class ConversationSession:
 
         return types.Tool(
             function_declarations=[
-                types.FunctionDeclaration(**fd)
-                for fd in get_gemini_function_declarations()
+                types.FunctionDeclaration(**fd) for fd in get_gemini_function_declarations()
             ]
         )
 
@@ -181,16 +182,20 @@ class ConversationSession:
                 if function_calls:
                     # Store model response with function calls in history
                     self.history.append({"role": "user", "text": text})
-                    self.history.append({
-                        "role": "model",
-                        "parts": parts,
-                    })
+                    self.history.append(
+                        {
+                            "role": "model",
+                            "parts": parts,
+                        }
+                    )
 
                     # Execute each function call and collect results
                     function_response_parts = []
                     for fc_part in function_calls:
                         fn_name = fc_part.function_call.name
-                        fn_args = dict(fc_part.function_call.args) if fc_part.function_call.args else {}
+                        fn_args = (
+                            dict(fc_part.function_call.args) if fc_part.function_call.args else {}
+                        )
                         fn_result = await self._execute_function(fn_name, fn_args, db)
 
                         function_response_parts.append(
@@ -201,12 +206,8 @@ class ConversationSession:
                         )
 
                     # Send function results back to Gemini
-                    contents.append(
-                        types.Content(role="model", parts=parts)
-                    )
-                    contents.append(
-                        types.Content(role="user", parts=function_response_parts)
-                    )
+                    contents.append(types.Content(role="model", parts=parts))
+                    contents.append(types.Content(role="user", parts=function_response_parts))
 
                     follow_up = await client.aio.models.generate_content(
                         model=settings.gemini_model,
@@ -216,10 +217,12 @@ class ConversationSession:
 
                     assistant_text = follow_up.text or ""
 
-                    self.history.append({
-                        "role": "user",
-                        "parts": function_response_parts,
-                    })
+                    self.history.append(
+                        {
+                            "role": "user",
+                            "parts": function_response_parts,
+                        }
+                    )
                     self.history.append({"role": "model", "text": assistant_text})
 
                     return assistant_text
@@ -239,17 +242,13 @@ class ConversationSession:
             logger.exception("Gemini API call failed")
             return self._fallback_response(text)
 
-    async def _execute_function(
-        self, fn_name: str, fn_args: dict, db: AsyncSession
-    ) -> dict:
+    async def _execute_function(self, fn_name: str, fn_args: dict, db: AsyncSession) -> dict:
         """Execute an AI function call and return the result."""
         try:
             if fn_name == "check_availability":
                 target_date = date.fromisoformat(str(fn_args["date"]))
                 dept_id = int(fn_args["department_id"])
-                slots = await appointment_engine.get_available_slots(
-                    db, dept_id, target_date
-                )
+                slots = await appointment_engine.get_available_slots(db, dept_id, target_date)
                 return {"available_slots": slots, "count": len(slots)}
 
             elif fn_name == "book_appointment":
@@ -286,9 +285,7 @@ class ConversationSession:
 
             elif fn_name == "lookup_appointment":
                 phone = str(fn_args.get("phone_number", self.caller_phone))
-                appointments = await appointment_engine.lookup_appointments_by_phone(
-                    db, phone
-                )
+                appointments = await appointment_engine.lookup_appointments_by_phone(db, phone)
                 return {
                     "appointments": [
                         {

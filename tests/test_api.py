@@ -3,7 +3,6 @@
 import pytest
 
 
-
 @pytest.mark.asyncio
 async def test_list_departments_empty(client):
     response = await client.get("/api/departments")

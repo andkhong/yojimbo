@@ -43,13 +43,11 @@ async def list_knowledge(
             | KnowledgeEntry.answer.ilike(f"%{search}%")
         )
 
-    total = (await db.execute(
-        select(func.count()).select_from(query.subquery())
-    )).scalar() or 0
+    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
 
-    entries = (await db.execute(
-        query.offset((page - 1) * per_page).limit(per_page)
-    )).scalars().all()
+    entries = (
+        (await db.execute(query.offset((page - 1) * per_page).limit(per_page))).scalars().all()
+    )
 
     return {
         "entries": [KnowledgeResponse.model_validate(e) for e in entries],
@@ -75,12 +73,18 @@ async def create_knowledge(
 @router.get("/categories", summary="List distinct knowledge categories")
 async def list_categories(db: AsyncSession = Depends(get_db)):
     """Return a list of unique categories in the knowledge base."""
-    rows = (await db.execute(
-        select(KnowledgeEntry.category)
-        .where(KnowledgeEntry.category.isnot(None))
-        .distinct()
-        .order_by(KnowledgeEntry.category)
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(KnowledgeEntry.category)
+                .where(KnowledgeEntry.category.isnot(None))
+                .distinct()
+                .order_by(KnowledgeEntry.category)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return {"categories": rows}
 
 
@@ -110,9 +114,7 @@ async def get_agent_context(
     entries = (await db.execute(query)).scalars().all()
 
     # Format for AI injection
-    formatted = "\n\n".join(
-        f"Q: {e.question}\nA: {e.answer}" for e in entries
-    )
+    formatted = "\n\n".join(f"Q: {e.question}\nA: {e.answer}" for e in entries)
 
     return {
         "department_id": department_id,
@@ -126,9 +128,9 @@ async def get_agent_context(
 @router.get("/{entry_id}", summary="Get a knowledge entry by ID")
 async def get_knowledge(entry_id: int, db: AsyncSession = Depends(get_db)):
     """Return a single knowledge base entry by ID."""
-    entry = (await db.execute(
-        select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id)
-    )).scalar_one_or_none()
+    entry = (
+        await db.execute(select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id))
+    ).scalar_one_or_none()
     if not entry:
         raise HTTPException(status_code=404, detail="Knowledge entry not found")
     return {"entry": KnowledgeResponse.model_validate(entry)}
@@ -141,9 +143,9 @@ async def update_knowledge(
     db: AsyncSession = Depends(get_db),
 ):
     """Update one or more fields on a knowledge base entry."""
-    entry = (await db.execute(
-        select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id)
-    )).scalar_one_or_none()
+    entry = (
+        await db.execute(select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id))
+    ).scalar_one_or_none()
     if not entry:
         raise HTTPException(status_code=404, detail="Knowledge entry not found")
 
@@ -156,9 +158,9 @@ async def update_knowledge(
 @router.delete("/{entry_id}", status_code=204, summary="Soft-delete a knowledge entry")
 async def delete_knowledge(entry_id: int, db: AsyncSession = Depends(get_db)):
     """Deactivate a knowledge base entry (soft delete)."""
-    entry = (await db.execute(
-        select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id)
-    )).scalar_one_or_none()
+    entry = (
+        await db.execute(select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id))
+    ).scalar_one_or_none()
     if not entry:
         raise HTTPException(status_code=404, detail="Knowledge entry not found")
     entry.is_active = False
@@ -168,9 +170,9 @@ async def delete_knowledge(entry_id: int, db: AsyncSession = Depends(get_db)):
 @router.post("/{entry_id}/restore", summary="Restore a deactivated knowledge entry")
 async def restore_knowledge(entry_id: int, db: AsyncSession = Depends(get_db)):
     """Reactivate a previously deactivated knowledge base entry."""
-    entry = (await db.execute(
-        select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id)
-    )).scalar_one_or_none()
+    entry = (
+        await db.execute(select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id))
+    ).scalar_one_or_none()
     if not entry:
         raise HTTPException(status_code=404, detail="Knowledge entry not found")
     entry.is_active = True

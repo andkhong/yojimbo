@@ -37,103 +37,117 @@ async def gov_summary(
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # === CALLS ===
-    total_calls = (await db.execute(
-        select(func.count()).where(Call.started_at >= cutoff)
-    )).scalar() or 0
+    total_calls = (
+        await db.execute(select(func.count()).where(Call.started_at >= cutoff))
+    ).scalar() or 0
 
-    active_calls = (await db.execute(
-        select(func.count()).where(Call.status.in_(["ringing", "in_progress"]))
-    )).scalar() or 0
+    active_calls = (
+        await db.execute(select(func.count()).where(Call.status.in_(["ringing", "in_progress"])))
+    ).scalar() or 0
 
-    today_calls = (await db.execute(
-        select(func.count()).where(Call.started_at >= today_start)
-    )).scalar() or 0
+    today_calls = (
+        await db.execute(select(func.count()).where(Call.started_at >= today_start))
+    ).scalar() or 0
 
-    resolved_calls = (await db.execute(
-        select(func.count()).where(
-            Call.started_at >= cutoff,
-            Call.resolution_status == "resolved",
+    resolved_calls = (
+        await db.execute(
+            select(func.count()).where(
+                Call.started_at >= cutoff,
+                Call.resolution_status == "resolved",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    escalated_calls = (await db.execute(
-        select(func.count()).where(
-            Call.started_at >= cutoff,
-            Call.resolution_status == "escalated",
+    escalated_calls = (
+        await db.execute(
+            select(func.count()).where(
+                Call.started_at >= cutoff,
+                Call.resolution_status == "escalated",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # Language distribution
-    lang_rows = (await db.execute(
-        select(Call.detected_language, func.count().label("cnt"))
-        .where(Call.started_at >= cutoff, Call.detected_language.isnot(None))
-        .group_by(Call.detected_language)
-        .order_by(func.count().desc())
-        .limit(5)
-    )).all()
+    lang_rows = (
+        await db.execute(
+            select(Call.detected_language, func.count().label("cnt"))
+            .where(Call.started_at >= cutoff, Call.detected_language.isnot(None))
+            .group_by(Call.detected_language)
+            .order_by(func.count().desc())
+            .limit(5)
+        )
+    ).all()
 
     # === APPOINTMENTS ===
-    total_appts = (await db.execute(
-        select(func.count()).where(Appointment.created_at >= cutoff)
-    )).scalar() or 0
+    total_appts = (
+        await db.execute(select(func.count()).where(Appointment.created_at >= cutoff))
+    ).scalar() or 0
 
-    upcoming_appts = (await db.execute(
-        select(func.count()).where(
-            Appointment.scheduled_start >= now,
-            Appointment.status == "confirmed",
+    upcoming_appts = (
+        await db.execute(
+            select(func.count()).where(
+                Appointment.scheduled_start >= now,
+                Appointment.status == "confirmed",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    no_shows = (await db.execute(
-        select(func.count()).where(
-            Appointment.created_at >= cutoff,
-            Appointment.status == "no_show",
+    no_shows = (
+        await db.execute(
+            select(func.count()).where(
+                Appointment.created_at >= cutoff,
+                Appointment.status == "no_show",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    pending_reminders = (await db.execute(
-        select(func.count()).where(
-            Appointment.status == "confirmed",
-            Appointment.reminder_sent.is_(False),
-            Appointment.scheduled_start >= now,
-            Appointment.scheduled_start <= now + timedelta(hours=24),
+    pending_reminders = (
+        await db.execute(
+            select(func.count()).where(
+                Appointment.status == "confirmed",
+                Appointment.reminder_sent.is_(False),
+                Appointment.scheduled_start >= now,
+                Appointment.scheduled_start <= now + timedelta(hours=24),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # === DEPARTMENTS ===
-    total_depts = (await db.execute(
-        select(func.count()).where(Department.is_active.is_(True))
-    )).scalar() or 0
+    total_depts = (
+        await db.execute(select(func.count()).where(Department.is_active.is_(True)))
+    ).scalar() or 0
 
     # === CONTACTS ===
-    total_contacts = (await db.execute(
-        select(func.count()).select_from(Contact)
-    )).scalar() or 0
+    total_contacts = (await db.execute(select(func.count()).select_from(Contact))).scalar() or 0
 
-    new_contacts = (await db.execute(
-        select(func.count()).where(Contact.created_at >= cutoff)
-    )).scalar() or 0
+    new_contacts = (
+        await db.execute(select(func.count()).where(Contact.created_at >= cutoff))
+    ).scalar() or 0
 
     # === STAFF ===
-    total_staff = (await db.execute(
-        select(func.count()).where(DashboardUser.is_active.is_(True))
-    )).scalar() or 0
+    total_staff = (
+        await db.execute(select(func.count()).where(DashboardUser.is_active.is_(True)))
+    ).scalar() or 0
 
-    staff_by_role = dict((await db.execute(
-        select(DashboardUser.role, func.count())
-        .where(DashboardUser.is_active.is_(True))
-        .group_by(DashboardUser.role)
-    )).all())
+    staff_by_role = dict(
+        (
+            await db.execute(
+                select(DashboardUser.role, func.count())
+                .where(DashboardUser.is_active.is_(True))
+                .group_by(DashboardUser.role)
+            )
+        ).all()
+    )
 
     # === KNOWLEDGE BASE ===
-    total_kb = (await db.execute(
-        select(func.count()).where(KnowledgeEntry.is_active.is_(True))
-    )).scalar() or 0
+    total_kb = (
+        await db.execute(select(func.count()).where(KnowledgeEntry.is_active.is_(True)))
+    ).scalar() or 0
 
     # === AGENT CONFIG ===
-    configured_keys = (await db.execute(
-        select(func.count()).select_from(AgentConfig)
-    )).scalar() or 0
+    configured_keys = (
+        await db.execute(select(func.count()).select_from(AgentConfig))
+    ).scalar() or 0
 
     # Compute resolution rate
     completed = resolved_calls + escalated_calls
@@ -149,18 +163,14 @@ async def gov_summary(
             "resolved": resolved_calls,
             "escalated": escalated_calls,
             "resolution_rate_pct": resolution_rate,
-            "top_languages": [
-                {"language": r[0], "count": r[1]} for r in lang_rows
-            ],
+            "top_languages": [{"language": r[0], "count": r[1]} for r in lang_rows],
         },
         "appointments": {
             "total": total_appts,
             "upcoming_confirmed": upcoming_appts,
             "no_shows": no_shows,
             "pending_reminders_24h": pending_reminders,
-            "no_show_rate_pct": (
-                round(no_shows / total_appts * 100, 1) if total_appts else None
-            ),
+            "no_show_rate_pct": (round(no_shows / total_appts * 100, 1) if total_appts else None),
         },
         "departments": {
             "active": total_depts,
@@ -196,39 +206,47 @@ async def compliance_summary(
 
     cutoff = datetime.utcnow() - timedelta(days=days)
 
-    total_audit = (await db.execute(
-        select(func.count()).where(AuditLog.created_at >= cutoff)
-    )).scalar() or 0
+    total_audit = (
+        await db.execute(select(func.count()).where(AuditLog.created_at >= cutoff))
+    ).scalar() or 0
 
-    action_rows = (await db.execute(
-        select(AuditLog.action, func.count().label("cnt"))
-        .where(AuditLog.created_at >= cutoff)
-        .group_by(AuditLog.action)
-    )).all()
+    action_rows = (
+        await db.execute(
+            select(AuditLog.action, func.count().label("cnt"))
+            .where(AuditLog.created_at >= cutoff)
+            .group_by(AuditLog.action)
+        )
+    ).all()
 
-    resource_rows = (await db.execute(
-        select(AuditLog.resource_type, func.count().label("cnt"))
-        .where(AuditLog.created_at >= cutoff)
-        .group_by(AuditLog.resource_type)
-    )).all()
+    resource_rows = (
+        await db.execute(
+            select(AuditLog.resource_type, func.count().label("cnt"))
+            .where(AuditLog.created_at >= cutoff)
+            .group_by(AuditLog.resource_type)
+        )
+    ).all()
 
     # SLA estimate
-    completed_calls = (await db.execute(
-        select(func.count()).where(
-            Call.started_at >= cutoff,
-            Call.status == "completed",
-            Call.duration_seconds.isnot(None),
+    completed_calls = (
+        await db.execute(
+            select(func.count()).where(
+                Call.started_at >= cutoff,
+                Call.status == "completed",
+                Call.duration_seconds.isnot(None),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    within_sla = (await db.execute(
-        select(func.count()).where(
-            Call.started_at >= cutoff,
-            Call.status == "completed",
-            Call.duration_seconds <= 300,
-            Call.duration_seconds.isnot(None),
+    within_sla = (
+        await db.execute(
+            select(func.count()).where(
+                Call.started_at >= cutoff,
+                Call.status == "completed",
+                Call.duration_seconds <= 300,
+                Call.duration_seconds.isnot(None),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     return {
         "generated_at": datetime.utcnow().isoformat(),
@@ -246,11 +264,13 @@ async def compliance_summary(
             ),
         },
         "data_governance": {
-            "knowledge_entries": (await db.execute(
-                select(func.count()).select_from(KnowledgeEntry)
-            )).scalar() or 0,
-            "agent_config_keys": (await db.execute(
-                select(func.count()).select_from(AgentConfig)
-            )).scalar() or 0,
+            "knowledge_entries": (
+                await db.execute(select(func.count()).select_from(KnowledgeEntry))
+            ).scalar()
+            or 0,
+            "agent_config_keys": (
+                await db.execute(select(func.count()).select_from(AgentConfig))
+            ).scalar()
+            or 0,
         },
     }

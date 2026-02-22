@@ -50,17 +50,13 @@ async def send_appointment_reminder(
         ValueError: If the appointment or contact cannot be found.
     """
     # Load appointment
-    result = await db.execute(
-        select(Appointment).where(Appointment.id == appointment_id)
-    )
+    result = await db.execute(select(Appointment).where(Appointment.id == appointment_id))
     appointment = result.scalar_one_or_none()
     if appointment is None:
         raise ValueError(f"Appointment {appointment_id} not found")
 
     # Load contact
-    result = await db.execute(
-        select(Contact).where(Contact.id == appointment.contact_id)
-    )
+    result = await db.execute(select(Contact).where(Contact.id == appointment.contact_id))
     contact = result.scalar_one_or_none()
     if contact is None:
         raise ValueError(
@@ -73,9 +69,7 @@ async def send_appointment_reminder(
     if success:
         appointment.reminder_sent = True
         await db.flush()
-        logger.info(
-            "Reminder sent for appointment %d to %s", appointment_id, contact.phone_number
-        )
+        logger.info("Reminder sent for appointment %d to %s", appointment_id, contact.phone_number)
         # Notify connected dashboard staff
         await notification.broadcast_event(
             "reminder.sent",
@@ -161,9 +155,7 @@ async def _send_sms(to: str, body: str) -> bool:
     if not all(
         [settings.twilio_account_sid, settings.twilio_auth_token, settings.twilio_phone_number]
     ):
-        logger.warning(
-            "Twilio credentials not configured — SMS not sent to %s", to
-        )
+        logger.warning("Twilio credentials not configured — SMS not sent to %s", to)
         return False
 
     try:

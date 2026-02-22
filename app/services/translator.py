@@ -29,7 +29,9 @@ async def _get_client():
         return None
 
 
-async def translate_text(text: str, target_language: str, source_language: str | None = None) -> str:
+async def translate_text(
+    text: str, target_language: str, source_language: str | None = None
+) -> str:
     """Translate text to the target language.
 
     Returns the original text if translation is unavailable or unnecessary.

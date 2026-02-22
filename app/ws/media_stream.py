@@ -78,23 +78,27 @@ class MediaStreamSession:
             # Twilio Media Stream expects base64-encoded audio payloads
             payload = base64.b64encode(chunk).decode("utf-8")
             await websocket.send_text(
-                json.dumps({
-                    "event": "media",
-                    "streamSid": self.stream_sid,
-                    "media": {
-                        "payload": payload,
-                    },
-                })
+                json.dumps(
+                    {
+                        "event": "media",
+                        "streamSid": self.stream_sid,
+                        "media": {
+                            "payload": payload,
+                        },
+                    }
+                )
             )
             chunk_count += 1
 
         # Send mark to know when audio finishes playing
         await websocket.send_text(
-            json.dumps({
-                "event": "mark",
-                "streamSid": self.stream_sid,
-                "mark": {"name": "response_end"},
-            })
+            json.dumps(
+                {
+                    "event": "mark",
+                    "streamSid": self.stream_sid,
+                    "mark": {"name": "response_end"},
+                }
+            )
         )
         logger.debug("ElevenLabs TTS: streamed %d chunks to Twilio", chunk_count)
 

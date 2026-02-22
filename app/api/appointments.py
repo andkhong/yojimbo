@@ -76,11 +76,13 @@ async def create_appointment(
     except BookingConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
-    await notification.notify_appointment_created({
-        "appointment_id": appt.id,
-        "department_id": appt.department_id,
-        "scheduled_start": appt.scheduled_start.isoformat(),
-    })
+    await notification.notify_appointment_created(
+        {
+            "appointment_id": appt.id,
+            "department_id": appt.department_id,
+            "scheduled_start": appt.scheduled_start.isoformat(),
+        }
+    )
 
     return {"appointment": AppointmentResponse.model_validate(appt)}
 
@@ -106,9 +108,7 @@ async def get_appointment(
     appointment_id: int,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Appointment).where(Appointment.id == appointment_id)
-    )
+    result = await db.execute(select(Appointment).where(Appointment.id == appointment_id))
     appt = result.scalar_one_or_none()
     if not appt:
         raise HTTPException(status_code=404, detail="Appointment not found")
@@ -121,9 +121,7 @@ async def update_appointment(
     data: AppointmentUpdate,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Appointment).where(Appointment.id == appointment_id)
-    )
+    result = await db.execute(select(Appointment).where(Appointment.id == appointment_id))
     appt = result.scalar_one_or_none()
     if not appt:
         raise HTTPException(status_code=404, detail="Appointment not found")
@@ -131,10 +129,12 @@ async def update_appointment(
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(appt, field, value)
 
-    await notification.notify_appointment_updated({
-        "appointment_id": appt.id,
-        "status": appt.status,
-    })
+    await notification.notify_appointment_updated(
+        {
+            "appointment_id": appt.id,
+            "status": appt.status,
+        }
+    )
 
     return {"appointment": AppointmentResponse.model_validate(appt)}
 
@@ -148,9 +148,11 @@ async def cancel_appointment_endpoint(
     if not appt:
         raise HTTPException(status_code=404, detail="Appointment not found")
 
-    await notification.notify_appointment_updated({
-        "appointment_id": appt.id,
-        "status": "cancelled",
-    })
+    await notification.notify_appointment_updated(
+        {
+            "appointment_id": appt.id,
+            "status": "cancelled",
+        }
+    )
 
     return {"appointment": AppointmentResponse.model_validate(appt)}

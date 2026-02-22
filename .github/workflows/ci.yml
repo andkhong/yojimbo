@@ -2,47 +2,64 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ["main", "feat/**", "fix/**", "chore/**"]
   pull_request:
-    branches: [main]
+    branches: ["main"]
 
 jobs:
   test:
-    name: Lint & Test (Python ${{ matrix.python-version }})
+    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12"]
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
+          cache: "pip"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
-      - name: Lint with ruff
+      - name: Run lint (ruff)
         run: |
           ruff check app/ tests/
 
       - name: Run tests
+        env:
+          # Use SQLite in-memory for CI; real credentials not needed
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          SECRET_KEY: "ci-test-secret-key-not-for-production"
+          OFFICE_NAME: "Test City Hall"
+          # Dummy Twilio/Gemini creds — tests mock external calls
+          TWILIO_ACCOUNT_SID: "ACtest000000000000000000000000000000"
+          TWILIO_AUTH_TOKEN: "test_auth_token_not_real"
+          TWILIO_PHONE_NUMBER: "+15550000000"
+          GEMINI_API_KEY: "test_gemini_key_not_real"
+          BASE_URL: "http://localhost:8000"
         run: |
           pytest -q --tb=short
 
-      - name: Upload test results (on failure)
-        if: failure()
-        uses: actions/upload-artifact@v4
+  lint:
+    name: Lint only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          name: test-results-${{ matrix.python-version }}
-          path: .pytest_cache/
-          retention-days: 7
+          python-version: "3.11"
+          cache: "pip"
+      - run: pip install ruff
+      - name: Ruff check
+        run: ruff check app/ tests/
+      - name: Ruff format check
+        run: ruff format --check app/ tests/
