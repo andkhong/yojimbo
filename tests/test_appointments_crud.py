@@ -29,9 +29,7 @@ from app.models.message import SMSMessage
 async def test_create_appointment(client, seeded_db):
     """Can create an appointment for a contact+department."""
     # First create a contact
-    contact_resp = await client.post(
-        "/api/contacts", json={"phone_number": "+15551110001"}
-    )
+    contact_resp = await client.post("/api/contacts", json={"phone_number": "+15551110001"})
     contact_id = contact_resp.json()["contact"]["id"]
 
     # Get the seeded department
@@ -61,9 +59,7 @@ async def test_create_appointment(client, seeded_db):
 @pytest.mark.asyncio
 async def test_get_appointment(client, seeded_db):
     """Can retrieve a created appointment by ID."""
-    contact_resp = await client.post(
-        "/api/contacts", json={"phone_number": "+15551110002"}
-    )
+    contact_resp = await client.post("/api/contacts", json={"phone_number": "+15551110002"})
     contact_id = contact_resp.json()["contact"]["id"]
     depts = (await client.get("/api/departments")).json()["departments"]
     dept_id = depts[0]["id"]
@@ -95,9 +91,7 @@ async def test_get_nonexistent_appointment_returns_404(client):
 @pytest.mark.asyncio
 async def test_update_appointment_status(client, seeded_db):
     """Can update appointment status to cancelled."""
-    contact_resp = await client.post(
-        "/api/contacts", json={"phone_number": "+15551110003"}
-    )
+    contact_resp = await client.post("/api/contacts", json={"phone_number": "+15551110003"})
     contact_id = contact_resp.json()["contact"]["id"]
     depts = (await client.get("/api/departments")).json()["departments"]
     dept_id = depts[0]["id"]
@@ -126,9 +120,7 @@ async def test_update_appointment_status(client, seeded_db):
 @pytest.mark.asyncio
 async def test_cancel_appointment(client, seeded_db):
     """DELETE endpoint cancels the appointment."""
-    contact_resp = await client.post(
-        "/api/contacts", json={"phone_number": "+15551110004"}
-    )
+    contact_resp = await client.post("/api/contacts", json={"phone_number": "+15551110004"})
     contact_id = contact_resp.json()["contact"]["id"]
     depts = (await client.get("/api/departments")).json()["departments"]
     dept_id = depts[0]["id"]
@@ -161,18 +153,26 @@ async def test_list_appointments_filter_by_status(client, db):
     await db.flush()
 
     now = datetime.utcnow()
-    db.add(Appointment(
-        contact_id=contact.id, department_id=dept.id,
-        title="A", status="confirmed",
-        scheduled_start=now + timedelta(days=1),
-        scheduled_end=now + timedelta(days=1, hours=1),
-    ))
-    db.add(Appointment(
-        contact_id=contact.id, department_id=dept.id,
-        title="B", status="cancelled",
-        scheduled_start=now + timedelta(days=2),
-        scheduled_end=now + timedelta(days=2, hours=1),
-    ))
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept.id,
+            title="A",
+            status="confirmed",
+            scheduled_start=now + timedelta(days=1),
+            scheduled_end=now + timedelta(days=1, hours=1),
+        )
+    )
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept.id,
+            title="B",
+            status="cancelled",
+            scheduled_start=now + timedelta(days=2),
+            scheduled_end=now + timedelta(days=2, hours=1),
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/appointments?status=confirmed")
@@ -193,18 +193,26 @@ async def test_list_appointments_filter_by_department(client, db):
     await db.flush()
 
     now = datetime.utcnow()
-    db.add(Appointment(
-        contact_id=contact.id, department_id=dept_a.id,
-        title="A", status="confirmed",
-        scheduled_start=now + timedelta(days=1),
-        scheduled_end=now + timedelta(days=1, hours=1),
-    ))
-    db.add(Appointment(
-        contact_id=contact.id, department_id=dept_b.id,
-        title="B", status="confirmed",
-        scheduled_start=now + timedelta(days=2),
-        scheduled_end=now + timedelta(days=2, hours=1),
-    ))
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept_a.id,
+            title="A",
+            status="confirmed",
+            scheduled_start=now + timedelta(days=1),
+            scheduled_end=now + timedelta(days=1, hours=1),
+        )
+    )
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept_b.id,
+            title="B",
+            status="confirmed",
+            scheduled_start=now + timedelta(days=2),
+            scheduled_end=now + timedelta(days=2, hours=1),
+        )
+    )
     await db.flush()
 
     resp = await client.get(f"/api/appointments?department_id={dept_a.id}")
@@ -226,21 +234,27 @@ async def test_list_appointments_filter_by_date(client, db):
     now = datetime.utcnow()
     # Tomorrow
     tomorrow = (now + timedelta(days=1)).date()
-    db.add(Appointment(
-        contact_id=contact.id, department_id=dept.id,
-        title="Tomorrow",
-        status="confirmed",
-        scheduled_start=datetime.combine(tomorrow, datetime.min.time().replace(hour=9)),
-        scheduled_end=datetime.combine(tomorrow, datetime.min.time().replace(hour=10)),
-    ))
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept.id,
+            title="Tomorrow",
+            status="confirmed",
+            scheduled_start=datetime.combine(tomorrow, datetime.min.time().replace(hour=9)),
+            scheduled_end=datetime.combine(tomorrow, datetime.min.time().replace(hour=10)),
+        )
+    )
     # Day after
-    db.add(Appointment(
-        contact_id=contact.id, department_id=dept.id,
-        title="Day After",
-        status="confirmed",
-        scheduled_start=now + timedelta(days=2),
-        scheduled_end=now + timedelta(days=2, hours=1),
-    ))
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept.id,
+            title="Day After",
+            status="confirmed",
+            scheduled_start=now + timedelta(days=2),
+            scheduled_end=now + timedelta(days=2, hours=1),
+        )
+    )
     await db.flush()
 
     resp = await client.get(f"/api/appointments?target_date={tomorrow.isoformat()}")
@@ -261,13 +275,16 @@ async def test_appointments_pagination(client, db):
 
     now = datetime.utcnow()
     for i in range(5):
-        db.add(Appointment(
-            contact_id=contact.id, department_id=dept.id,
-            title=f"Appt {i}",
-            status="confirmed",
-            scheduled_start=now + timedelta(days=i + 1),
-            scheduled_end=now + timedelta(days=i + 1, hours=1),
-        ))
+        db.add(
+            Appointment(
+                contact_id=contact.id,
+                department_id=dept.id,
+                title=f"Appt {i}",
+                status="confirmed",
+                scheduled_start=now + timedelta(days=i + 1),
+                scheduled_end=now + timedelta(days=i + 1, hours=1),
+            )
+        )
     await db.flush()
 
     resp = await client.get("/api/appointments?per_page=2&page=1")
@@ -293,18 +310,22 @@ async def test_list_messages_empty(client):
 @pytest.mark.asyncio
 async def test_list_messages_with_data(client, db):
     """Can list SMS messages."""
-    db.add(SMSMessage(
-        twilio_message_sid="SM_list_001",
-        direction="inbound",
-        body="Hello",
-        status="received",
-    ))
-    db.add(SMSMessage(
-        twilio_message_sid="SM_list_002",
-        direction="outbound",
-        body="Hi back",
-        status="sent",
-    ))
+    db.add(
+        SMSMessage(
+            twilio_message_sid="SM_list_001",
+            direction="inbound",
+            body="Hello",
+            status="received",
+        )
+    )
+    db.add(
+        SMSMessage(
+            twilio_message_sid="SM_list_002",
+            direction="outbound",
+            body="Hi back",
+            status="sent",
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/messages")
@@ -319,20 +340,24 @@ async def test_list_messages_filter_by_contact(client, db):
     db.add(contact)
     await db.flush()
 
-    db.add(SMSMessage(
-        twilio_message_sid="SM_flt_001",
-        contact_id=contact.id,
-        direction="inbound",
-        body="My message",
-        status="received",
-    ))
-    db.add(SMSMessage(
-        twilio_message_sid="SM_flt_002",
-        contact_id=None,
-        direction="inbound",
-        body="Unlinked",
-        status="received",
-    ))
+    db.add(
+        SMSMessage(
+            twilio_message_sid="SM_flt_001",
+            contact_id=contact.id,
+            direction="inbound",
+            body="My message",
+            status="received",
+        )
+    )
+    db.add(
+        SMSMessage(
+            twilio_message_sid="SM_flt_002",
+            contact_id=None,
+            direction="inbound",
+            body="Unlinked",
+            status="received",
+        )
+    )
     await db.flush()
 
     resp = await client.get(f"/api/messages?contact_id={contact.id}")
@@ -345,12 +370,14 @@ async def test_list_messages_filter_by_contact(client, db):
 async def test_messages_pagination(client, db):
     """Messages respect per_page."""
     for i in range(5):
-        db.add(SMSMessage(
-            twilio_message_sid=f"SM_page_{i:03d}",
-            direction="inbound",
-            body=f"Message {i}",
-            status="received",
-        ))
+        db.add(
+            SMSMessage(
+                twilio_message_sid=f"SM_page_{i:03d}",
+                direction="inbound",
+                body=f"Message {i}",
+                status="received",
+            )
+        )
     await db.flush()
 
     resp = await client.get("/api/messages?per_page=3&page=1")
@@ -385,19 +412,23 @@ async def test_full_call_lifecycle(client, db):
     await db.flush()
 
     # 2. Add transcript turns
-    for i, (role, text) in enumerate([
-        ("caller", "I need a parking permit"),
-        ("agent", "I can help you with that. What type of vehicle?"),
-        ("caller", "It's a 2020 Honda Civic"),
-        ("agent", "Your permit will be ready in 3 business days."),
-    ]):
-        db.add(ConversationTurn(
-            call_id=call.id,
-            sequence=i,
-            role=role,
-            original_text=text,
-            language="en",
-        ))
+    for i, (role, text) in enumerate(
+        [
+            ("caller", "I need a parking permit"),
+            ("agent", "I can help you with that. What type of vehicle?"),
+            ("caller", "It's a 2020 Honda Civic"),
+            ("agent", "Your permit will be ready in 3 business days."),
+        ]
+    ):
+        db.add(
+            ConversationTurn(
+                call_id=call.id,
+                sequence=i,
+                role=role,
+                original_text=text,
+                language="en",
+            )
+        )
     await db.flush()
 
     # 3. Verify call shows in live feed
@@ -444,13 +475,15 @@ async def test_call_transcript_endpoint(client, db):
     await db.flush()
 
     for i in range(3):
-        db.add(ConversationTurn(
-            call_id=call.id,
-            sequence=i,
-            role="caller" if i % 2 == 0 else "agent",
-            original_text=f"Turn {i}",
-            language="en",
-        ))
+        db.add(
+            ConversationTurn(
+                call_id=call.id,
+                sequence=i,
+                role="caller" if i % 2 == 0 else "agent",
+                original_text=f"Turn {i}",
+                language="en",
+            )
+        )
     await db.flush()
 
     resp = await client.get(f"/api/calls/{call.id}/transcript")
@@ -462,18 +495,22 @@ async def test_call_transcript_endpoint(client, db):
 async def test_call_filter_by_date_range(client, db):
     """Calls can be filtered by date_from and date_to."""
     now = datetime.utcnow()
-    db.add(Call(
-        twilio_call_sid="CA_date_old",
-        direction="inbound",
-        status="completed",
-        started_at=now - timedelta(days=10),
-    ))
-    db.add(Call(
-        twilio_call_sid="CA_date_new",
-        direction="inbound",
-        status="completed",
-        started_at=now - timedelta(days=1),
-    ))
+    db.add(
+        Call(
+            twilio_call_sid="CA_date_old",
+            direction="inbound",
+            status="completed",
+            started_at=now - timedelta(days=10),
+        )
+    )
+    db.add(
+        Call(
+            twilio_call_sid="CA_date_new",
+            direction="inbound",
+            status="completed",
+            started_at=now - timedelta(days=1),
+        )
+    )
     await db.flush()
 
     from_date = (now - timedelta(days=5)).isoformat()
@@ -487,8 +524,14 @@ async def test_call_filter_by_date_range(client, db):
 async def test_call_filter_by_status(client, db):
     """Calls can be filtered by status."""
     now = datetime.utcnow()
-    db.add(Call(twilio_call_sid="CA_stat_comp", direction="inbound", status="completed", started_at=now))
-    db.add(Call(twilio_call_sid="CA_stat_ring", direction="inbound", status="ringing", started_at=now))
+    db.add(
+        Call(
+            twilio_call_sid="CA_stat_comp", direction="inbound", status="completed", started_at=now
+        )
+    )
+    db.add(
+        Call(twilio_call_sid="CA_stat_ring", direction="inbound", status="ringing", started_at=now)
+    )
     await db.flush()
 
     resp = await client.get("/api/calls?status=completed")
@@ -513,30 +556,36 @@ async def test_department_stats_with_calls_and_appointments(client, db):
 
     now = datetime.utcnow()
     # Add calls
-    db.add(Call(
-        twilio_call_sid="CA_st1",
-        direction="inbound",
-        status="completed",
-        resolution_status="resolved",
-        department_id=dept.id,
-        started_at=now,
-    ))
-    db.add(Call(
-        twilio_call_sid="CA_st2",
-        direction="inbound",
-        status="in_progress",
-        department_id=dept.id,
-        started_at=now,
-    ))
+    db.add(
+        Call(
+            twilio_call_sid="CA_st1",
+            direction="inbound",
+            status="completed",
+            resolution_status="resolved",
+            department_id=dept.id,
+            started_at=now,
+        )
+    )
+    db.add(
+        Call(
+            twilio_call_sid="CA_st2",
+            direction="inbound",
+            status="in_progress",
+            department_id=dept.id,
+            started_at=now,
+        )
+    )
     # Add appointment
-    db.add(Appointment(
-        contact_id=contact.id,
-        department_id=dept.id,
-        title="Stats Appt",
-        status="confirmed",
-        scheduled_start=now + timedelta(days=1),
-        scheduled_end=now + timedelta(days=1, hours=1),
-    ))
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept.id,
+            title="Stats Appt",
+            status="confirmed",
+            scheduled_start=now + timedelta(days=1),
+            scheduled_end=now + timedelta(days=1, hours=1),
+        )
+    )
     await db.flush()
 
     resp = await client.get(f"/api/departments/{dept.id}/stats")
@@ -557,6 +606,7 @@ async def test_department_stats_with_calls_and_appointments(client, db):
 async def test_knowledge_language_filter(client, db):
     """Knowledge list can be filtered by language."""
     from app.models.knowledge import KnowledgeEntry
+
     db.add(KnowledgeEntry(question="Q en?", answer="A en.", language="en"))
     db.add(KnowledgeEntry(question="Q es?", answer="A es.", language="es"))
     db.add(KnowledgeEntry(question="Q zh?", answer="A zh.", language="zh"))
@@ -573,13 +623,22 @@ async def test_knowledge_language_filter(client, db):
 async def test_knowledge_department_filter_includes_global(client, db):
     """Knowledge filter for a department includes global (null dept) entries."""
     from app.models.knowledge import KnowledgeEntry
+
     dept = Department(name="Rec Dept", code="REC")
     db.add(dept)
     await db.flush()
 
     db.add(KnowledgeEntry(question="Global?", answer="Yes.", language="en", department_id=None))
-    db.add(KnowledgeEntry(question="Dept specific?", answer="Yes.", language="en", department_id=dept.id))
-    db.add(KnowledgeEntry(question="Other dept?", answer="No.", language="en", department_id=dept.id + 999))
+    db.add(
+        KnowledgeEntry(
+            question="Dept specific?", answer="Yes.", language="en", department_id=dept.id
+        )
+    )
+    db.add(
+        KnowledgeEntry(
+            question="Other dept?", answer="No.", language="en", department_id=dept.id + 999
+        )
+    )
     await db.flush()
 
     resp = await client.get(f"/api/knowledge?department_id={dept.id}")

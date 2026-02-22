@@ -52,9 +52,7 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     result = await db.execute(
-        select(DashboardUser).where(
-            DashboardUser.id == user_id, DashboardUser.is_active.is_(True)
-        )
+        select(DashboardUser).where(DashboardUser.id == user_id, DashboardUser.is_active.is_(True))
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -63,9 +61,7 @@ async def get_current_user(
     return user
 
 
-async def authenticate_user(
-    db: AsyncSession, username: str, password: str
-) -> DashboardUser | None:
+async def authenticate_user(db: AsyncSession, username: str, password: str) -> DashboardUser | None:
     result = await db.execute(
         select(DashboardUser).where(
             DashboardUser.username == username, DashboardUser.is_active.is_(True)

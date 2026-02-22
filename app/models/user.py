@@ -13,9 +13,7 @@ class DashboardUser(Base):
     username: Mapped[str] = mapped_column(String(100), unique=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     name: Mapped[str] = mapped_column(String(255))
-    department_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("departments.id")
-    )
+    department_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("departments.id"))
     role: Mapped[str] = mapped_column(String(20), default="staff")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login: Mapped[datetime | None] = mapped_column(DateTime)

@@ -50,16 +50,12 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
 
     # Today's calls
     today_calls = (
-        await db.execute(
-            select(func.count()).where(Call.started_at >= today_start)
-        )
+        await db.execute(select(func.count()).where(Call.started_at >= today_start))
     ).scalar() or 0
 
     # Active calls
     active_calls = (
-        await db.execute(
-            select(func.count()).where(Call.status.in_(["ringing", "in_progress"]))
-        )
+        await db.execute(select(func.count()).where(Call.status.in_(["ringing", "in_progress"])))
     ).scalar() or 0
 
     # Today's appointments
@@ -74,9 +70,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     ).scalar() or 0
 
     # Total contacts
-    total_contacts = (
-        await db.execute(select(func.count()).select_from(Contact))
-    ).scalar() or 0
+    total_contacts = (await db.execute(select(func.count()).select_from(Contact))).scalar() or 0
 
     # Language breakdown from today's calls
     lang_rows = (
@@ -117,10 +111,10 @@ async def get_activity_feed(
 
     # Recent calls
     calls = (
-        await db.execute(
-            select(Call).order_by(Call.started_at.desc()).limit(limit)
-        )
-    ).scalars().all()
+        (await db.execute(select(Call).order_by(Call.started_at.desc()).limit(limit)))
+        .scalars()
+        .all()
+    )
     for c in calls:
         activities.append(
             ActivityItem(
@@ -134,10 +128,10 @@ async def get_activity_feed(
 
     # Recent appointments
     appts = (
-        await db.execute(
-            select(Appointment).order_by(Appointment.created_at.desc()).limit(limit)
-        )
-    ).scalars().all()
+        (await db.execute(select(Appointment).order_by(Appointment.created_at.desc()).limit(limit)))
+        .scalars()
+        .all()
+    )
     for a in appts:
         activities.append(
             ActivityItem(
@@ -151,10 +145,10 @@ async def get_activity_feed(
 
     # Recent SMS
     messages = (
-        await db.execute(
-            select(SMSMessage).order_by(SMSMessage.created_at.desc()).limit(limit)
-        )
-    ).scalars().all()
+        (await db.execute(select(SMSMessage).order_by(SMSMessage.created_at.desc()).limit(limit)))
+        .scalars()
+        .all()
+    )
     for m in messages:
         direction = "Received" if m.direction == "inbound" else "Sent"
         activities.append(

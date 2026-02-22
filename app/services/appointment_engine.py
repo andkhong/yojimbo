@@ -172,9 +172,7 @@ async def cancel_appointment(
     reason: str | None = None,
 ) -> Appointment | None:
     """Cancel an appointment by ID. Returns the updated appointment or None."""
-    result = await db.execute(
-        select(Appointment).where(Appointment.id == appointment_id)
-    )
+    result = await db.execute(select(Appointment).where(Appointment.id == appointment_id))
     appointment = result.scalar_one_or_none()
     if not appointment:
         return None
@@ -191,9 +189,7 @@ async def lookup_appointments_by_phone(
     phone_number: str,
 ) -> list[Appointment]:
     """Look up upcoming appointments for a phone number."""
-    result = await db.execute(
-        select(Contact).where(Contact.phone_number == phone_number)
-    )
+    result = await db.execute(select(Contact).where(Contact.phone_number == phone_number))
     contact = result.scalar_one_or_none()
     if not contact:
         return []
@@ -217,9 +213,7 @@ async def get_or_create_contact(
     language: str = "en",
 ) -> Contact:
     """Get an existing contact by phone number or create a new one."""
-    result = await db.execute(
-        select(Contact).where(Contact.phone_number == phone_number)
-    )
+    result = await db.execute(select(Contact).where(Contact.phone_number == phone_number))
     contact = result.scalar_one_or_none()
 
     if contact:

@@ -30,9 +30,7 @@ async def handle_dashboard_ws(
                 action = message.get("action")
 
                 if action == "ping":
-                    await websocket.send_text(
-                        json.dumps({"event": "pong", "data": {}})
-                    )
+                    await websocket.send_text(json.dumps({"event": "pong", "data": {}}))
                 elif action == "subscribe_call":
                     # Future: per-call subscription filtering
                     logger.info("Client subscribed to call %s", message.get("call_id"))

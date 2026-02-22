@@ -32,13 +32,17 @@ async def handle_monitor_ws(websocket: WebSocket) -> None:
     subscribed_dept: int | None = None
 
     # Send initial state
-    await websocket.send_text(json.dumps({
-        "event": "connected",
-        "data": {
-            "message": "Connected to Yojimbo live-call monitor",
-            "timestamp": datetime.utcnow().isoformat(),
-        },
-    }))
+    await websocket.send_text(
+        json.dumps(
+            {
+                "event": "connected",
+                "data": {
+                    "message": "Connected to Yojimbo live-call monitor",
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+            }
+        )
+    )
 
     ping_task = asyncio.create_task(_ping_loop(websocket))
 
@@ -50,16 +54,24 @@ async def handle_monitor_ws(websocket: WebSocket) -> None:
 
                 if action == "subscribe":
                     subscribed_dept = msg.get("department_id")
-                    await websocket.send_text(json.dumps({
-                        "event": "subscribed",
-                        "data": {"department_id": subscribed_dept},
-                    }))
+                    await websocket.send_text(
+                        json.dumps(
+                            {
+                                "event": "subscribed",
+                                "data": {"department_id": subscribed_dept},
+                            }
+                        )
+                    )
 
                 elif action == "ping":
-                    await websocket.send_text(json.dumps({
-                        "event": "pong",
-                        "data": {"timestamp": datetime.utcnow().isoformat()},
-                    }))
+                    await websocket.send_text(
+                        json.dumps(
+                            {
+                                "event": "pong",
+                                "data": {"timestamp": datetime.utcnow().isoformat()},
+                            }
+                        )
+                    )
 
             except json.JSONDecodeError:
                 logger.warning("Monitor WS: invalid JSON from client")
@@ -76,10 +88,14 @@ async def _ping_loop(websocket: WebSocket) -> None:
     try:
         while True:
             await asyncio.sleep(30)
-            await websocket.send_text(json.dumps({
-                "event": "ping",
-                "data": {"timestamp": datetime.utcnow().isoformat()},
-            }))
+            await websocket.send_text(
+                json.dumps(
+                    {
+                        "event": "ping",
+                        "data": {"timestamp": datetime.utcnow().isoformat()},
+                    }
+                )
+            )
     except Exception:
         pass
 
@@ -98,10 +114,12 @@ async def broadcast_call_event(
         data: Event payload dict
         department_id: If set, include for client-side filtering
     """
-    payload = json.dumps({
-        "event": event,
-        "department_id": department_id,
-        "data": data,
-        "timestamp": datetime.utcnow().isoformat(),
-    })
+    payload = json.dumps(
+        {
+            "event": event,
+            "department_id": department_id,
+            "data": data,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    )
     await monitor_manager.broadcast(payload)

@@ -14,7 +14,7 @@ class AuditLog(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     username: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    action: Mapped[str] = mapped_column(String(20))          # CREATE, UPDATE, DELETE
+    action: Mapped[str] = mapped_column(String(20))  # CREATE, UPDATE, DELETE
     resource_type: Mapped[str] = mapped_column(String(100))  # department, user, config, etc.
     resource_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     old_value: Mapped[str | None] = mapped_column(Text, nullable=True)

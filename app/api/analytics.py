@@ -124,9 +124,7 @@ async def resolution_breakdown(
         "escalated": breakdown.get("escalated", 0),
         "abandoned": breakdown.get("abandoned", 0),
         "unknown": breakdown.get("unknown", 0),
-        "resolution_rate": (
-            round(breakdown.get("resolved", 0) / total * 100, 1) if total else 0.0
-        ),
+        "resolution_rate": (round(breakdown.get("resolved", 0) / total * 100, 1) if total else 0.0),
     }
 
 
@@ -137,43 +135,51 @@ async def department_metrics(
 ):
     """Return call volume and resolution per active department."""
     cutoff = datetime.utcnow() - timedelta(days=days)
-    depts = (await db.execute(
-        select(Department).where(Department.is_active.is_(True))
-    )).scalars().all()
+    depts = (
+        (await db.execute(select(Department).where(Department.is_active.is_(True)))).scalars().all()
+    )
 
     results = []
     for dept in depts:
-        total = (await db.execute(
-            select(func.count()).where(
-                Call.department_id == dept.id,
-                Call.started_at >= cutoff,
+        total = (
+            await db.execute(
+                select(func.count()).where(
+                    Call.department_id == dept.id,
+                    Call.started_at >= cutoff,
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
 
-        resolved = (await db.execute(
-            select(func.count()).where(
-                Call.department_id == dept.id,
-                Call.started_at >= cutoff,
-                Call.resolution_status == "resolved",
+        resolved = (
+            await db.execute(
+                select(func.count()).where(
+                    Call.department_id == dept.id,
+                    Call.started_at >= cutoff,
+                    Call.resolution_status == "resolved",
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
 
-        completed = (await db.execute(
-            select(func.count()).where(
-                Call.department_id == dept.id,
-                Call.started_at >= cutoff,
-                Call.status == "completed",
+        completed = (
+            await db.execute(
+                select(func.count()).where(
+                    Call.department_id == dept.id,
+                    Call.started_at >= cutoff,
+                    Call.status == "completed",
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
 
         resolution_rate = round(resolved / completed * 100, 1) if completed else 0.0
-        results.append({
-            "department_id": dept.id,
-            "department_name": dept.name,
-            "total_calls": total,
-            "resolved": resolved,
-            "resolution_rate": resolution_rate,
-        })
+        results.append(
+            {
+                "department_id": dept.id,
+                "department_name": dept.name,
+                "total_calls": total,
+                "resolved": resolved,
+                "resolution_rate": resolution_rate,
+            }
+        )
 
     return {"days": days, "departments": results}
 
@@ -228,13 +234,17 @@ async def appointment_analytics(
     status_map = {r.status: r.count for r in rows}
 
     # Reminder effectiveness
-    reminder_query = select(
-        Appointment.reminder_sent,
-        func.count().label("count"),
-    ).where(
-        Appointment.created_at >= cutoff,
-        Appointment.status.in_(["confirmed", "no_show"]),
-    ).group_by(Appointment.reminder_sent)
+    reminder_query = (
+        select(
+            Appointment.reminder_sent,
+            func.count().label("count"),
+        )
+        .where(
+            Appointment.created_at >= cutoff,
+            Appointment.status.in_(["confirmed", "no_show"]),
+        )
+        .group_by(Appointment.reminder_sent)
+    )
 
     if department_id:
         reminder_query = reminder_query.where(Appointment.department_id == department_id)
@@ -250,9 +260,7 @@ async def appointment_analytics(
         "cancelled": status_map.get("cancelled", 0),
         "no_show": status_map.get("no_show", 0),
         "completed": status_map.get("completed", 0),
-        "no_show_rate": (
-            round(status_map.get("no_show", 0) / total * 100, 1) if total else 0.0
-        ),
+        "no_show_rate": (round(status_map.get("no_show", 0) / total * 100, 1) if total else 0.0),
         "reminders": {
             "sent": reminders_sent,
             "not_sent": no_reminders,
@@ -269,24 +277,26 @@ async def no_show_contacts(
     """Return contacts with multiple no-show appointments in the past N days."""
     cutoff = datetime.utcnow() - timedelta(days=days)
 
-    rows = (await db.execute(
-        select(Appointment.contact_id, func.count().label("no_shows"))
-        .where(
-            Appointment.status == "no_show",
-            Appointment.created_at >= cutoff,
+    rows = (
+        await db.execute(
+            select(Appointment.contact_id, func.count().label("no_shows"))
+            .where(
+                Appointment.status == "no_show",
+                Appointment.created_at >= cutoff,
+            )
+            .group_by(Appointment.contact_id)
+            .having(func.count() >= min_no_shows)
+            .order_by(func.count().desc())
         )
-        .group_by(Appointment.contact_id)
-        .having(func.count() >= min_no_shows)
-        .order_by(func.count().desc())
-    )).all()
+    ).all()
 
     # Enrich with contact info
     contact_ids = [r.contact_id for r in rows]
     contacts = {
         c.id: c
-        for c in (await db.execute(
-            select(Contact).where(Contact.id.in_(contact_ids))
-        )).scalars().all()
+        for c in (await db.execute(select(Contact).where(Contact.id.in_(contact_ids))))
+        .scalars()
+        .all()
     }
 
     return {
@@ -315,47 +325,61 @@ reports_router = APIRouter(prefix="/api/reports", tags=["reports"])
 async def sla_report(
     db: AsyncSession = Depends(get_db),
     days: int = Query(30, ge=1, le=365),
-    target_handle_seconds: int = Query(300, ge=1, description="SLA target: max handle time in seconds"),
+    target_handle_seconds: int = Query(
+        300, ge=1, description="SLA target: max handle time in seconds"
+    ),
 ):
     """Return SLA compliance metrics per department."""
     cutoff = datetime.utcnow() - timedelta(days=days)
-    depts = (await db.execute(
-        select(Department).where(Department.is_active.is_(True))
-    )).scalars().all()
+    depts = (
+        (await db.execute(select(Department).where(Department.is_active.is_(True)))).scalars().all()
+    )
 
     dept_results = []
     for dept in depts:
-        calls = (await db.execute(
-            select(Call).where(
-                Call.department_id == dept.id,
-                Call.started_at >= cutoff,
-                Call.status == "completed",
-                Call.duration_seconds.isnot(None),
+        calls = (
+            (
+                await db.execute(
+                    select(Call).where(
+                        Call.department_id == dept.id,
+                        Call.started_at >= cutoff,
+                        Call.status == "completed",
+                        Call.duration_seconds.isnot(None),
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
 
         if not calls:
-            dept_results.append({
-                "department_id": dept.id,
-                "department_name": dept.name,
-                "total_completed": 0,
-                "within_sla": 0,
-                "sla_compliance_pct": None,
-                "avg_handle_seconds": None,
-            })
+            dept_results.append(
+                {
+                    "department_id": dept.id,
+                    "department_name": dept.name,
+                    "total_completed": 0,
+                    "within_sla": 0,
+                    "sla_compliance_pct": None,
+                    "avg_handle_seconds": None,
+                }
+            )
             continue
 
         within_sla = sum(1 for c in calls if (c.duration_seconds or 0) <= target_handle_seconds)
-        avg_handle = round(sum(c.duration_seconds for c in calls if c.duration_seconds) / len(calls), 1)
+        avg_handle = round(
+            sum(c.duration_seconds for c in calls if c.duration_seconds) / len(calls), 1
+        )
 
-        dept_results.append({
-            "department_id": dept.id,
-            "department_name": dept.name,
-            "total_completed": len(calls),
-            "within_sla": within_sla,
-            "sla_compliance_pct": round(within_sla / len(calls) * 100, 1),
-            "avg_handle_seconds": avg_handle,
-        })
+        dept_results.append(
+            {
+                "department_id": dept.id,
+                "department_name": dept.name,
+                "total_completed": len(calls),
+                "within_sla": within_sla,
+                "sla_compliance_pct": round(within_sla / len(calls) * 100, 1),
+                "avg_handle_seconds": avg_handle,
+            }
+        )
 
     overall_completed = sum(r["total_completed"] for r in dept_results)
     overall_within_sla = sum(r["within_sla"] for r in dept_results)
@@ -389,9 +413,7 @@ async def export_analytics(
     cutoff = datetime.utcnow() - timedelta(days=days)
 
     # Call volume by day
-    calls = (await db.execute(
-        select(Call).where(Call.started_at >= cutoff)
-    )).scalars().all()
+    calls = (await db.execute(select(Call).where(Call.started_at >= cutoff))).scalars().all()
 
     daily: dict[str, int] = {}
     lang_counts: dict[str, int] = {}
@@ -405,9 +427,11 @@ async def export_analytics(
             res_counts[c.resolution_status] = res_counts.get(c.resolution_status, 0) + 1
 
     # Appointments
-    appts = (await db.execute(
-        select(Appointment).where(Appointment.created_at >= cutoff)
-    )).scalars().all()
+    appts = (
+        (await db.execute(select(Appointment).where(Appointment.created_at >= cutoff)))
+        .scalars()
+        .all()
+    )
     appt_status: dict[str, int] = {}
     for a in appts:
         appt_status[a.status] = appt_status.get(a.status, 0) + 1

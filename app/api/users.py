@@ -42,13 +42,9 @@ async def list_users(
     if is_active is not None:
         query = query.where(DashboardUser.is_active.is_(is_active))
 
-    total = (await db.execute(
-        select(func.count()).select_from(query.subquery())
-    )).scalar() or 0
+    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
 
-    users = (await db.execute(
-        query.offset((page - 1) * per_page).limit(per_page)
-    )).scalars().all()
+    users = (await db.execute(query.offset((page - 1) * per_page).limit(per_page))).scalars().all()
 
     return {
         "users": [UserResponse.model_validate(u) for u in users],
@@ -70,9 +66,9 @@ async def create_user(
             detail=f"Invalid role '{data.role}'. Must be one of: {sorted(VALID_ROLES)}",
         )
 
-    existing = (await db.execute(
-        select(DashboardUser).where(DashboardUser.username == data.username)
-    )).scalar_one_or_none()
+    existing = (
+        await db.execute(select(DashboardUser).where(DashboardUser.username == data.username))
+    ).scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=409, detail="Username already taken")
 
@@ -92,9 +88,9 @@ async def create_user(
 @router.get("/{user_id}", summary="Get a staff user by ID")
 async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
     """Return a staff user by their ID."""
-    user = (await db.execute(
-        select(DashboardUser).where(DashboardUser.id == user_id)
-    )).scalar_one_or_none()
+    user = (
+        await db.execute(select(DashboardUser).where(DashboardUser.id == user_id))
+    ).scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return {"user": UserResponse.model_validate(user)}
@@ -107,9 +103,9 @@ async def update_user(
     db: AsyncSession = Depends(get_db),
 ):
     """Update one or more fields on a staff user."""
-    user = (await db.execute(
-        select(DashboardUser).where(DashboardUser.id == user_id)
-    )).scalar_one_or_none()
+    user = (
+        await db.execute(select(DashboardUser).where(DashboardUser.id == user_id))
+    ).scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -134,20 +130,22 @@ async def update_user(
 @router.delete("/{user_id}", status_code=204, summary="Deactivate a staff user")
 async def deactivate_user(user_id: int, db: AsyncSession = Depends(get_db)):
     """Soft-delete (deactivate) a staff user. Cannot deactivate the last admin."""
-    user = (await db.execute(
-        select(DashboardUser).where(DashboardUser.id == user_id)
-    )).scalar_one_or_none()
+    user = (
+        await db.execute(select(DashboardUser).where(DashboardUser.id == user_id))
+    ).scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     # Guard: don't deactivate last admin
     if user.role == "admin" and user.is_active:
-        admin_count = (await db.execute(
-            select(func.count()).where(
-                DashboardUser.role == "admin",
-                DashboardUser.is_active.is_(True),
+        admin_count = (
+            await db.execute(
+                select(func.count()).where(
+                    DashboardUser.role == "admin",
+                    DashboardUser.is_active.is_(True),
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
         if admin_count <= 1:
             raise HTTPException(
                 status_code=409,
@@ -161,9 +159,9 @@ async def deactivate_user(user_id: int, db: AsyncSession = Depends(get_db)):
 @router.post("/{user_id}/activate", summary="Re-activate a deactivated staff user")
 async def activate_user(user_id: int, db: AsyncSession = Depends(get_db)):
     """Re-activate a previously deactivated staff user."""
-    user = (await db.execute(
-        select(DashboardUser).where(DashboardUser.id == user_id)
-    )).scalar_one_or_none()
+    user = (
+        await db.execute(select(DashboardUser).where(DashboardUser.id == user_id))
+    ).scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.is_active = True
@@ -178,9 +176,15 @@ async def list_users_by_role(role: str, db: AsyncSession = Depends(get_db)):
             status_code=422,
             detail=f"Invalid role '{role}'. Must be one of: {sorted(VALID_ROLES)}",
         )
-    users = (await db.execute(
-        select(DashboardUser)
-        .where(DashboardUser.role == role, DashboardUser.is_active.is_(True))
-        .order_by(DashboardUser.name)
-    )).scalars().all()
+    users = (
+        (
+            await db.execute(
+                select(DashboardUser)
+                .where(DashboardUser.role == role, DashboardUser.is_active.is_(True))
+                .order_by(DashboardUser.name)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return {"users": [UserResponse.model_validate(u) for u in users], "role": role}

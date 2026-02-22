@@ -29,15 +29,13 @@ class Settings(BaseSettings):
     # ConversationRelay
     cr_tts_provider: str = "google"
     cr_stt_provider: str = "google"
-    cr_welcome_greeting: str = (
-        "Hello, thank you for calling. How can I help you today?"
-    )
+    cr_welcome_greeting: str = "Hello, thank you for calling. How can I help you today?"
 
     # ElevenLabs TTS (Phase 2 — optional, replaces Twilio TTS)
     # Set ELEVENLABS_API_KEY to enable. Leave blank to use Twilio built-in TTS.
     elevenlabs_api_key: str = ""
-    elevenlabs_voice_id: str = "21m00Tcm4TlvDq8ikWAM"    # Rachel — warm, professional
-    elevenlabs_model_id: str = "eleven_flash_v2_5"         # Lowest latency model
+    elevenlabs_voice_id: str = "21m00Tcm4TlvDq8ikWAM"  # Rachel — warm, professional
+    elevenlabs_model_id: str = "eleven_flash_v2_5"  # Lowest latency model
 
     @property
     def tts_provider_name(self) -> str:

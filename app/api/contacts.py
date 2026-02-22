@@ -69,19 +69,14 @@ async def get_contact(
     contact_id: int,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Contact).where(Contact.id == contact_id)
-    )
+    result = await db.execute(select(Contact).where(Contact.id == contact_id))
     contact = result.scalar_one_or_none()
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
 
     # Recent calls
     calls_result = await db.execute(
-        select(Call)
-        .where(Call.contact_id == contact_id)
-        .order_by(Call.started_at.desc())
-        .limit(10)
+        select(Call).where(Call.contact_id == contact_id).order_by(Call.started_at.desc()).limit(10)
     )
     recent_calls = calls_result.scalars().all()
 
@@ -123,9 +118,7 @@ async def update_contact(
     data: ContactUpdate,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Contact).where(Contact.id == contact_id)
-    )
+    result = await db.execute(select(Contact).where(Contact.id == contact_id))
     contact = result.scalar_one_or_none()
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
@@ -144,63 +137,85 @@ async def get_contact_history(
     per_page: int = Query(20, ge=1, le=100),
 ):
     """Return all calls, appointments, and SMS messages for a contact, most recent first."""
-    contact = (await db.execute(
-        select(Contact).where(Contact.id == contact_id)
-    )).scalar_one_or_none()
+    contact = (
+        await db.execute(select(Contact).where(Contact.id == contact_id))
+    ).scalar_one_or_none()
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
 
     # All calls
-    calls = (await db.execute(
-        select(Call)
-        .where(Call.contact_id == contact_id)
-        .order_by(Call.started_at.desc())
-    )).scalars().all()
+    calls = (
+        (
+            await db.execute(
+                select(Call).where(Call.contact_id == contact_id).order_by(Call.started_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     # All appointments
-    appts = (await db.execute(
-        select(Appointment)
-        .where(Appointment.contact_id == contact_id)
-        .order_by(Appointment.scheduled_start.desc())
-    )).scalars().all()
+    appts = (
+        (
+            await db.execute(
+                select(Appointment)
+                .where(Appointment.contact_id == contact_id)
+                .order_by(Appointment.scheduled_start.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     # All SMS messages
-    messages = (await db.execute(
-        select(SMSMessage)
-        .where(SMSMessage.contact_id == contact_id)
-        .order_by(SMSMessage.created_at.desc())
-    )).scalars().all()
+    messages = (
+        (
+            await db.execute(
+                select(SMSMessage)
+                .where(SMSMessage.contact_id == contact_id)
+                .order_by(SMSMessage.created_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     # Unified timeline
     events = []
     for c in calls:
-        events.append({
-            "type": "call",
-            "id": c.id,
-            "timestamp": c.started_at.isoformat(),
-            "status": c.status,
-            "direction": c.direction,
-            "language": c.detected_language,
-            "duration_seconds": c.duration_seconds,
-            "resolution": c.resolution_status,
-        })
+        events.append(
+            {
+                "type": "call",
+                "id": c.id,
+                "timestamp": c.started_at.isoformat(),
+                "status": c.status,
+                "direction": c.direction,
+                "language": c.detected_language,
+                "duration_seconds": c.duration_seconds,
+                "resolution": c.resolution_status,
+            }
+        )
     for a in appts:
-        events.append({
-            "type": "appointment",
-            "id": a.id,
-            "timestamp": a.scheduled_start.isoformat(),
-            "status": a.status,
-            "title": a.title,
-            "department_id": a.department_id,
-        })
+        events.append(
+            {
+                "type": "appointment",
+                "id": a.id,
+                "timestamp": a.scheduled_start.isoformat(),
+                "status": a.status,
+                "title": a.title,
+                "department_id": a.department_id,
+            }
+        )
     for m in messages:
-        events.append({
-            "type": "sms",
-            "id": m.id,
-            "timestamp": m.created_at.isoformat(),
-            "direction": m.direction,
-            "body": m.body,
-        })
+        events.append(
+            {
+                "type": "sms",
+                "id": m.id,
+                "timestamp": m.created_at.isoformat(),
+                "direction": m.direction,
+                "body": m.body,
+            }
+        )
 
     events.sort(key=lambda e: e["timestamp"], reverse=True)
     total = len(events)
@@ -231,12 +246,12 @@ async def merge_contacts(
     All calls, appointments, and SMS messages are re-assigned to the primary contact.
     The duplicate contact is then deactivated (notes appended).
     """
-    primary = (await db.execute(
-        select(Contact).where(Contact.id == data.primary_contact_id)
-    )).scalar_one_or_none()
-    duplicate = (await db.execute(
-        select(Contact).where(Contact.id == data.duplicate_contact_id)
-    )).scalar_one_or_none()
+    primary = (
+        await db.execute(select(Contact).where(Contact.id == data.primary_contact_id))
+    ).scalar_one_or_none()
+    duplicate = (
+        await db.execute(select(Contact).where(Contact.id == data.duplicate_contact_id))
+    ).scalar_one_or_none()
 
     if not primary:
         raise HTTPException(status_code=404, detail="Primary contact not found")
@@ -249,9 +264,7 @@ async def merge_contacts(
     from sqlalchemy import update as sa_update
 
     await db.execute(
-        sa_update(Call)
-        .where(Call.contact_id == duplicate.id)
-        .values(contact_id=primary.id)
+        sa_update(Call).where(Call.contact_id == duplicate.id).values(contact_id=primary.id)
     )
     await db.execute(
         sa_update(Appointment)
@@ -266,7 +279,9 @@ async def merge_contacts(
 
     # Merge notes
     if duplicate.notes:
-        primary.notes = (primary.notes or "") + f"\n[Merged from {duplicate.phone_number}]: {duplicate.notes}"
+        primary.notes = (
+            primary.notes or ""
+        ) + f"\n[Merged from {duplicate.phone_number}]: {duplicate.notes}"
 
     # Prefer the more complete name/email
     if not primary.name and duplicate.name:
@@ -297,14 +312,15 @@ async def set_contact_tags(
     db: AsyncSession = Depends(get_db),
 ):
     """Set/replace the tags on a contact. Tags are stored in the notes field as JSON metadata."""
-    contact = (await db.execute(
-        select(Contact).where(Contact.id == contact_id)
-    )).scalar_one_or_none()
+    contact = (
+        await db.execute(select(Contact).where(Contact.id == contact_id))
+    ).scalar_one_or_none()
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
 
     # Store tags in notes as a structured prefix (simple approach without schema change)
     import json as _json
+
     existing_notes = contact.notes or ""
     # Strip any existing tag block
     if existing_notes.startswith("__TAGS__:"):
@@ -325,9 +341,9 @@ async def get_contact_tags(
     """Return the tags set on a contact."""
     import json as _json
 
-    contact = (await db.execute(
-        select(Contact).where(Contact.id == contact_id)
-    )).scalar_one_or_none()
+    contact = (
+        await db.execute(select(Contact).where(Contact.id == contact_id))
+    ).scalar_one_or_none()
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
 
@@ -335,7 +351,7 @@ async def get_contact_tags(
     if contact.notes and contact.notes.startswith("__TAGS__:"):
         first_line = contact.notes.split("\n", 1)[0]
         try:
-            tags = _json.loads(first_line[len("__TAGS__:"):])
+            tags = _json.loads(first_line[len("__TAGS__:") :])
         except Exception:
             tags = []
 

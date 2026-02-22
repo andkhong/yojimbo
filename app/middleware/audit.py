@@ -94,8 +94,10 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
 
             # Client IP
             forwarded_for = request.headers.get("x-forwarded-for")
-            ip = forwarded_for.split(",")[0].strip() if forwarded_for else (
-                request.client.host if request.client else None
+            ip = (
+                forwarded_for.split(",")[0].strip()
+                if forwarded_for
+                else (request.client.host if request.client else None)
             )
 
             async with async_session_factory() as session:

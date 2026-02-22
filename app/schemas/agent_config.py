@@ -21,6 +21,7 @@ class AgentConfigEntry(BaseModel):
 
 class AgentConfigUpdate(BaseModel):
     """Update one or more config values."""
+
     updates: dict[str, str]
     updated_by: str | None = None
 

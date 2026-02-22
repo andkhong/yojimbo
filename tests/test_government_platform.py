@@ -128,6 +128,7 @@ async def test_list_audit_logs_empty(client):
 @pytest.mark.asyncio
 async def test_list_audit_logs_with_data(client, db):
     from app.models.audit_log import AuditLog
+
     log = AuditLog(
         action="CREATE",
         resource_type="department",
@@ -145,6 +146,7 @@ async def test_list_audit_logs_with_data(client, db):
 @pytest.mark.asyncio
 async def test_audit_log_filters(client, db):
     from app.models.audit_log import AuditLog
+
     db.add(AuditLog(action="CREATE", resource_type="department", username="alice"))
     db.add(AuditLog(action="DELETE", resource_type="user", username="bob"))
     await db.flush()
@@ -161,6 +163,7 @@ async def test_audit_log_filters(client, db):
 @pytest.mark.asyncio
 async def test_audit_log_summary(client, db):
     from app.models.audit_log import AuditLog
+
     db.add(AuditLog(action="CREATE", resource_type="department"))
     db.add(AuditLog(action="CREATE", resource_type="user"))
     db.add(AuditLog(action="DELETE", resource_type="department"))
@@ -248,12 +251,16 @@ async def test_update_user_role(client):
 @pytest.mark.asyncio
 async def test_deactivate_user(client, db):
     # Create two admins so we can deactivate one
-    db.add(DashboardUser(
-        username="admin1", password_hash=hash_password("p"), name="Admin1", role="admin"
-    ))
-    db.add(DashboardUser(
-        username="admin2", password_hash=hash_password("p"), name="Admin2", role="admin"
-    ))
+    db.add(
+        DashboardUser(
+            username="admin1", password_hash=hash_password("p"), name="Admin1", role="admin"
+        )
+    )
+    db.add(
+        DashboardUser(
+            username="admin2", password_hash=hash_password("p"), name="Admin2", role="admin"
+        )
+    )
     await db.flush()
 
     # Get admin1 id
@@ -378,12 +385,14 @@ async def test_call_volume_empty(client):
 async def test_call_volume_with_data(client, db):
     now = datetime.utcnow()
     for i in range(3):
-        db.add(Call(
-            twilio_call_sid=f"CA_vol_{i}",
-            direction="inbound",
-            status="completed",
-            started_at=now - timedelta(hours=i),
-        ))
+        db.add(
+            Call(
+                twilio_call_sid=f"CA_vol_{i}",
+                direction="inbound",
+                status="completed",
+                started_at=now - timedelta(hours=i),
+            )
+        )
     await db.flush()
 
     resp = await client.get("/api/analytics/calls?days=30")
@@ -394,9 +403,33 @@ async def test_call_volume_with_data(client, db):
 @pytest.mark.asyncio
 async def test_language_distribution(client, db):
     now = datetime.utcnow()
-    db.add(Call(twilio_call_sid="CA_lang_en", direction="inbound", status="completed", detected_language="en", started_at=now))
-    db.add(Call(twilio_call_sid="CA_lang_es1", direction="inbound", status="completed", detected_language="es", started_at=now))
-    db.add(Call(twilio_call_sid="CA_lang_es2", direction="inbound", status="completed", detected_language="es", started_at=now))
+    db.add(
+        Call(
+            twilio_call_sid="CA_lang_en",
+            direction="inbound",
+            status="completed",
+            detected_language="en",
+            started_at=now,
+        )
+    )
+    db.add(
+        Call(
+            twilio_call_sid="CA_lang_es1",
+            direction="inbound",
+            status="completed",
+            detected_language="es",
+            started_at=now,
+        )
+    )
+    db.add(
+        Call(
+            twilio_call_sid="CA_lang_es2",
+            direction="inbound",
+            status="completed",
+            detected_language="es",
+            started_at=now,
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/analytics/languages?days=30")
@@ -410,9 +443,33 @@ async def test_language_distribution(client, db):
 @pytest.mark.asyncio
 async def test_resolution_breakdown(client, db):
     now = datetime.utcnow()
-    db.add(Call(twilio_call_sid="CA_res1", direction="inbound", status="completed", resolution_status="resolved", started_at=now))
-    db.add(Call(twilio_call_sid="CA_res2", direction="inbound", status="completed", resolution_status="escalated", started_at=now))
-    db.add(Call(twilio_call_sid="CA_res3", direction="inbound", status="completed", resolution_status="resolved", started_at=now))
+    db.add(
+        Call(
+            twilio_call_sid="CA_res1",
+            direction="inbound",
+            status="completed",
+            resolution_status="resolved",
+            started_at=now,
+        )
+    )
+    db.add(
+        Call(
+            twilio_call_sid="CA_res2",
+            direction="inbound",
+            status="completed",
+            resolution_status="escalated",
+            started_at=now,
+        )
+    )
+    db.add(
+        Call(
+            twilio_call_sid="CA_res3",
+            direction="inbound",
+            status="completed",
+            resolution_status="resolved",
+            started_at=now,
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/analytics/resolution?days=30")
@@ -427,7 +484,14 @@ async def test_resolution_breakdown(client, db):
 async def test_peak_hours(client, db):
     now = datetime.utcnow().replace(hour=14, minute=0, second=0)
     for i in range(5):
-        db.add(Call(twilio_call_sid=f"CA_peak_{i}", direction="inbound", status="completed", started_at=now))
+        db.add(
+            Call(
+                twilio_call_sid=f"CA_peak_{i}",
+                direction="inbound",
+                status="completed",
+                started_at=now,
+            )
+        )
     await db.flush()
 
     resp = await client.get("/api/analytics/peak-hours?days=30")
@@ -443,7 +507,16 @@ async def test_department_metrics(client, db):
     await db.flush()
 
     now = datetime.utcnow()
-    db.add(Call(twilio_call_sid="CA_dpt1", direction="inbound", status="completed", department_id=dept.id, started_at=now, resolution_status="resolved"))
+    db.add(
+        Call(
+            twilio_call_sid="CA_dpt1",
+            direction="inbound",
+            status="completed",
+            department_id=dept.id,
+            started_at=now,
+            resolution_status="resolved",
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/analytics/departments?days=30")
@@ -476,14 +549,16 @@ async def test_appointment_analytics_with_data(client, db):
 
     now = datetime.utcnow()
     for status in ["confirmed", "cancelled", "no_show"]:
-        db.add(Appointment(
-            contact_id=contact.id,
-            department_id=dept.id,
-            title="Test Appt",
-            status=status,
-            scheduled_start=now + timedelta(days=1),
-            scheduled_end=now + timedelta(days=1, hours=1),
-        ))
+        db.add(
+            Appointment(
+                contact_id=contact.id,
+                department_id=dept.id,
+                title="Test Appt",
+                status=status,
+                scheduled_start=now + timedelta(days=1),
+                scheduled_end=now + timedelta(days=1, hours=1),
+            )
+        )
     await db.flush()
 
     resp = await client.get("/api/analytics/appointments?days=30")
@@ -505,14 +580,16 @@ async def test_no_show_contacts(client, db):
 
     now = datetime.utcnow()
     for i in range(3):
-        db.add(Appointment(
-            contact_id=contact.id,
-            department_id=dept.id,
-            title="Appt",
-            status="no_show",
-            scheduled_start=now - timedelta(days=i),
-            scheduled_end=now - timedelta(days=i) + timedelta(hours=1),
-        ))
+        db.add(
+            Appointment(
+                contact_id=contact.id,
+                department_id=dept.id,
+                title="Appt",
+                status="no_show",
+                scheduled_start=now - timedelta(days=i),
+                scheduled_end=now - timedelta(days=i) + timedelta(hours=1),
+            )
+        )
     await db.flush()
 
     resp = await client.get("/api/analytics/no-shows?min_no_shows=2&days=90")
@@ -545,14 +622,16 @@ async def test_sla_report_with_data(client, db):
     # 3 within SLA (< 300s), 1 over
     durations = [120, 180, 240, 600]
     for i, dur in enumerate(durations):
-        db.add(Call(
-            twilio_call_sid=f"CA_sla_{i}",
-            direction="inbound",
-            status="completed",
-            department_id=dept.id,
-            duration_seconds=dur,
-            started_at=now,
-        ))
+        db.add(
+            Call(
+                twilio_call_sid=f"CA_sla_{i}",
+                direction="inbound",
+                status="completed",
+                department_id=dept.id,
+                duration_seconds=dur,
+                started_at=now,
+            )
+        )
     await db.flush()
 
     resp = await client.get("/api/reports/sla?target_handle_seconds=300&days=30")
@@ -595,7 +674,9 @@ async def test_create_knowledge_entry(client):
 
 @pytest.mark.asyncio
 async def test_knowledge_search(client, db):
-    db.add(KnowledgeEntry(question="How to get a permit?", answer="Visit city hall.", language="en"))
+    db.add(
+        KnowledgeEntry(question="How to get a permit?", answer="Visit city hall.", language="en")
+    )
     db.add(KnowledgeEntry(question="Park hours?", answer="Dawn to dusk.", language="en"))
     await db.flush()
 
@@ -666,9 +747,7 @@ async def test_knowledge_categories(client, db):
 
 @pytest.mark.asyncio
 async def test_contact_history_empty(client):
-    resp = await client.post(
-        "/api/contacts", json={"phone_number": "+15550010001"}
-    )
+    resp = await client.post("/api/contacts", json={"phone_number": "+15550010001"})
     contact_id = resp.json()["contact"]["id"]
 
     resp2 = await client.get(f"/api/contacts/{contact_id}/history")
@@ -684,13 +763,15 @@ async def test_contact_history_with_calls(client, db):
     db.add(contact)
     await db.flush()
 
-    db.add(Call(
-        twilio_call_sid="CA_hist_001",
-        contact_id=contact.id,
-        direction="inbound",
-        status="completed",
-        started_at=datetime.utcnow(),
-    ))
+    db.add(
+        Call(
+            twilio_call_sid="CA_hist_001",
+            contact_id=contact.id,
+            direction="inbound",
+            status="completed",
+            started_at=datetime.utcnow(),
+        )
+    )
     await db.flush()
 
     resp = await client.get(f"/api/contacts/{contact.id}/history")
@@ -708,13 +789,15 @@ async def test_contact_merge(client, db):
     db.add(duplicate)
     await db.flush()
 
-    db.add(Call(
-        twilio_call_sid="CA_merge_001",
-        contact_id=duplicate.id,
-        direction="inbound",
-        status="completed",
-        started_at=datetime.utcnow(),
-    ))
+    db.add(
+        Call(
+            twilio_call_sid="CA_merge_001",
+            contact_id=duplicate.id,
+            direction="inbound",
+            status="completed",
+            started_at=datetime.utcnow(),
+        )
+    )
     await db.flush()
 
     resp = await client.post(
@@ -782,15 +865,17 @@ async def test_pending_reminders_with_appt(client, db):
     await db.flush()
 
     # Appt in 2 hours, no reminder sent
-    db.add(Appointment(
-        contact_id=contact.id,
-        department_id=dept.id,
-        title="Health Check",
-        status="confirmed",
-        reminder_sent=False,
-        scheduled_start=datetime.utcnow() + timedelta(hours=2),
-        scheduled_end=datetime.utcnow() + timedelta(hours=3),
-    ))
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept.id,
+            title="Health Check",
+            status="confirmed",
+            reminder_sent=False,
+            scheduled_start=datetime.utcnow() + timedelta(hours=2),
+            scheduled_end=datetime.utcnow() + timedelta(hours=3),
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/reminders/pending?hours_ahead=24")
@@ -808,15 +893,17 @@ async def test_run_reminders_dry_run(client, db):
     db.add(dept)
     await db.flush()
 
-    db.add(Appointment(
-        contact_id=contact.id,
-        department_id=dept.id,
-        title="Library Tour",
-        status="confirmed",
-        reminder_sent=False,
-        scheduled_start=datetime.utcnow() + timedelta(hours=3),
-        scheduled_end=datetime.utcnow() + timedelta(hours=4),
-    ))
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept.id,
+            title="Library Tour",
+            status="confirmed",
+            reminder_sent=False,
+            scheduled_start=datetime.utcnow() + timedelta(hours=3),
+            scheduled_end=datetime.utcnow() + timedelta(hours=4),
+        )
+    )
     await db.flush()
 
     resp = await client.post("/api/reminders/run?hours_ahead=24&dry_run=true")
@@ -835,15 +922,17 @@ async def test_reminder_history(client, db):
     db.add(dept)
     await db.flush()
 
-    db.add(Appointment(
-        contact_id=contact.id,
-        department_id=dept.id,
-        title="Tax Consult",
-        status="confirmed",
-        reminder_sent=True,
-        scheduled_start=datetime.utcnow() + timedelta(days=1),
-        scheduled_end=datetime.utcnow() + timedelta(days=1, hours=1),
-    ))
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept.id,
+            title="Tax Consult",
+            status="confirmed",
+            reminder_sent=True,
+            scheduled_start=datetime.utcnow() + timedelta(days=1),
+            scheduled_end=datetime.utcnow() + timedelta(days=1, hours=1),
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/reminders/history?days=30")
@@ -953,14 +1042,16 @@ async def test_slot_availability(client, db):
 
     # Add a Monday slot
 
-    db.add(TimeSlot(
-        department_id=dept.id,
-        day_of_week=0,  # Monday
-        start_time=time(9, 0),
-        end_time=time(9, 30),
-        slot_duration_minutes=30,
-        max_concurrent=2,
-    ))
+    db.add(
+        TimeSlot(
+            department_id=dept.id,
+            day_of_week=0,  # Monday
+            start_time=time(9, 0),
+            end_time=time(9, 30),
+            slot_duration_minutes=30,
+            max_concurrent=2,
+        )
+    )
     await db.flush()
 
     # Use a known Monday

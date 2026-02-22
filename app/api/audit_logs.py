@@ -62,12 +62,12 @@ async def list_audit_logs(
 @router.get("/summary", summary="Audit log summary statistics")
 async def audit_log_summary(db: AsyncSession = Depends(get_db)):
     """Return counts of actions grouped by type."""
-    rows = (await db.execute(
-        select(AuditLog.action, func.count()).group_by(AuditLog.action)
-    )).all()
-    resource_rows = (await db.execute(
-        select(AuditLog.resource_type, func.count()).group_by(AuditLog.resource_type)
-    )).all()
+    rows = (await db.execute(select(AuditLog.action, func.count()).group_by(AuditLog.action))).all()
+    resource_rows = (
+        await db.execute(
+            select(AuditLog.resource_type, func.count()).group_by(AuditLog.resource_type)
+        )
+    ).all()
     total = (await db.execute(select(func.count()).select_from(AuditLog))).scalar() or 0
     return {
         "total": total,
@@ -79,11 +79,10 @@ async def audit_log_summary(db: AsyncSession = Depends(get_db)):
 @router.get("/{log_id}", summary="Get a single audit log entry")
 async def get_audit_log(log_id: int, db: AsyncSession = Depends(get_db)) -> AuditLogResponse:
     """Return a single audit log entry by ID."""
-    log = (await db.execute(
-        select(AuditLog).where(AuditLog.id == log_id)
-    )).scalar_one_or_none()
+    log = (await db.execute(select(AuditLog).where(AuditLog.id == log_id))).scalar_one_or_none()
     if not log:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Audit log entry not found")
     return AuditLogResponse.model_validate(log)
 
@@ -91,6 +90,7 @@ async def get_audit_log(log_id: int, db: AsyncSession = Depends(get_db)) -> Audi
 # ---------------------------------------------------------------------------
 # Helper used by other modules to create audit log entries
 # ---------------------------------------------------------------------------
+
 
 async def create_audit_entry(
     db: AsyncSession,

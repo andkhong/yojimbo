@@ -53,9 +53,7 @@ async def handle_inbound_sms(
 
     # Translate response if needed
     if detected_lang != "en":
-        response_text = await translator.translate_text(
-            response_text, detected_lang, "en"
-        )
+        response_text = await translator.translate_text(response_text, detected_lang, "en")
 
     return response_text
 
@@ -76,13 +74,10 @@ async def _generate_sms_response(
         client = genai.Client(api_key=settings.gemini_api_key)
 
         # Get departments for context
-        result = await db.execute(
-            select(Department).where(Department.is_active.is_(True))
-        )
+        result = await db.execute(select(Department).where(Department.is_active.is_(True)))
         departments = result.scalars().all()
         dept_info = "\n".join(
-            f"- {d.name} (ID: {d.id}): {d.description or 'N/A'}"
-            for d in departments
+            f"- {d.name} (ID: {d.id}): {d.description or 'N/A'}" for d in departments
         )
 
         lang_name = LANGUAGE_NAMES.get(sender_language, sender_language)

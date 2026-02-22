@@ -67,29 +67,31 @@ async def handle_conversation_relay(websocket: WebSocket) -> None:
                     # Pass caller speech directly to Gemini — no translation needed.
                     # Gemini 2.0 Flash understands 40+ languages natively and will
                     # respond in the caller's language per the system prompt.
-                    response_text = await session.process_caller_input(
-                        caller_text, db
-                    )
+                    response_text = await session.process_caller_input(caller_text, db)
 
                     # Store conversation turns in the database
                     if call_id:
                         seq = session.turn_count * 2 - 1
-                        db.add(ConversationTurn(
-                            call_id=call_id,
-                            sequence=seq,
-                            role="caller",
-                            original_text=caller_text,
-                            translated_text=None,  # no translation — stored as-is
-                            language=session.caller_language,
-                        ))
-                        db.add(ConversationTurn(
-                            call_id=call_id,
-                            sequence=seq + 1,
-                            role="agent",
-                            original_text=response_text,
-                            translated_text=None,  # response already in caller's language
-                            language=session.caller_language,
-                        ))
+                        db.add(
+                            ConversationTurn(
+                                call_id=call_id,
+                                sequence=seq,
+                                role="caller",
+                                original_text=caller_text,
+                                translated_text=None,  # no translation — stored as-is
+                                language=session.caller_language,
+                            )
+                        )
+                        db.add(
+                            ConversationTurn(
+                                call_id=call_id,
+                                sequence=seq + 1,
+                                role="agent",
+                                original_text=response_text,
+                                translated_text=None,  # response already in caller's language
+                                language=session.caller_language,
+                            )
+                        )
                         await db.commit()
 
                     # Broadcast live transcript to dashboard
@@ -130,9 +132,7 @@ async def handle_conversation_relay(websocket: WebSocket) -> None:
         # Mark call as completed
         if call_id:
             async with async_session_factory() as db:
-                result = await db.execute(
-                    select(Call).where(Call.id == call_id)
-                )
+                result = await db.execute(select(Call).where(Call.id == call_id))
                 call = result.scalar_one_or_none()
                 if call:
                     call.status = "completed"
@@ -158,15 +158,18 @@ async def handle_conversation_relay(websocket: WebSocket) -> None:
                     # Broadcast via monitor WebSocket
                     from app.ws.monitor import broadcast_call_event
                     import asyncio
-                    asyncio.create_task(broadcast_call_event(
-                        "call_ended",
-                        {
-                            "call_id": call.id,
-                            "duration_seconds": call.duration_seconds,
-                            "resolution_status": call.resolution_status,
-                        },
-                        department_id=call.department_id,
-                    ))
+
+                    asyncio.create_task(
+                        broadcast_call_event(
+                            "call_ended",
+                            {
+                                "call_id": call.id,
+                                "duration_seconds": call.duration_seconds,
+                                "resolution_status": call.resolution_status,
+                            },
+                            department_id=call.department_id,
+                        )
+                    )
 
                     await notification.notify_call_ended(
                         call_id=call.id,
@@ -185,9 +188,7 @@ async def _handle_setup(message: dict) -> tuple[str | None, int | None, Conversa
 
     async with async_session_factory() as db:
         # Load department info for the AI agent context
-        result = await db.execute(
-            select(Department).where(Department.is_active.is_(True))
-        )
+        result = await db.execute(select(Department).where(Department.is_active.is_(True)))
         departments = result.scalars().all()
         dept_list = [
             {
@@ -200,11 +201,17 @@ async def _handle_setup(message: dict) -> tuple[str | None, int | None, Conversa
         ]
 
         # Load knowledge base entries for the caller's language
-        knowledge_entries = (await db.execute(
-            select(KnowledgeEntry)
-            .where(KnowledgeEntry.is_active.is_(True), KnowledgeEntry.language == language)
-            .limit(30)
-        )).scalars().all()
+        knowledge_entries = (
+            (
+                await db.execute(
+                    select(KnowledgeEntry)
+                    .where(KnowledgeEntry.is_active.is_(True), KnowledgeEntry.language == language)
+                    .limit(30)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         knowledge_context: str | None = None
         if knowledge_entries:
@@ -218,11 +225,17 @@ async def _handle_setup(message: dict) -> tuple[str | None, int | None, Conversa
             )
 
         # Load DB-backed agent configuration overrides
-        db_configs = (await db.execute(
-            select(AgentConfig).where(
-                AgentConfig.key.in_(["system_prompt", "greeting_message"])
+        db_configs = (
+            (
+                await db.execute(
+                    select(AgentConfig).where(
+                        AgentConfig.key.in_(["system_prompt", "greeting_message"])
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
         config_map = {cfg.key: cfg.value for cfg in db_configs}
         custom_system_prompt = config_map.get("system_prompt")
         greeting_message = config_map.get("greeting_message")
@@ -243,26 +256,31 @@ async def _handle_setup(message: dict) -> tuple[str | None, int | None, Conversa
         call_id = call.id
         await db.commit()
 
-        await notification.notify_call_started({
-            "call_id": call_id,
-            "call_sid": call_sid,
-            "caller_number": caller_phone,
-            "detected_language": language,
-            "direction": "inbound",
-        })
-
-        # Broadcast to live-call monitor
-        from app.ws.monitor import broadcast_call_event
-        import asyncio
-        asyncio.create_task(broadcast_call_event(
-            "call_started",
+        await notification.notify_call_started(
             {
                 "call_id": call_id,
                 "call_sid": call_sid,
                 "caller_number": caller_phone,
-                "language": language,
-            },
-        ))
+                "detected_language": language,
+                "direction": "inbound",
+            }
+        )
+
+        # Broadcast to live-call monitor
+        from app.ws.monitor import broadcast_call_event
+        import asyncio
+
+        asyncio.create_task(
+            broadcast_call_event(
+                "call_started",
+                {
+                    "call_id": call_id,
+                    "call_sid": call_sid,
+                    "caller_number": caller_phone,
+                    "language": language,
+                },
+            )
+        )
 
     session = ConversationSession(
         call_sid=call_sid,

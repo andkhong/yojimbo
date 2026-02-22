@@ -36,7 +36,12 @@ def test_conversation_session_with_departments():
         caller_phone="+15550001111",
         caller_language="en",
         departments=[
-            {"id": 1, "name": "Building Permits", "description": "Permit issues", "operating_hours": "9am-5pm"},
+            {
+                "id": 1,
+                "name": "Building Permits",
+                "description": "Permit issues",
+                "operating_hours": "9am-5pm",
+            },
         ],
     )
     assert "Building Permits" in session.system_instruction
@@ -160,18 +165,22 @@ async def test_knowledge_context_for_relay(client, db):
     """Knowledge context endpoint returns data in relay-compatible format."""
     from app.models.knowledge import KnowledgeEntry
 
-    db.add(KnowledgeEntry(
-        question="How do I apply for a permit?",
-        answer="Visit city hall or apply online at permits.cityname.gov",
-        language="en",
-        is_active=True,
-    ))
-    db.add(KnowledgeEntry(
-        question="¿Cuáles son sus horas?",
-        answer="Lunes a viernes, 9am-5pm.",
-        language="es",
-        is_active=True,
-    ))
+    db.add(
+        KnowledgeEntry(
+            question="How do I apply for a permit?",
+            answer="Visit city hall or apply online at permits.cityname.gov",
+            language="en",
+            is_active=True,
+        )
+    )
+    db.add(
+        KnowledgeEntry(
+            question="¿Cuáles son sus horas?",
+            answer="Lunes a viernes, 9am-5pm.",
+            language="es",
+            is_active=True,
+        )
+    )
     await db.flush()
 
     # English context
@@ -199,21 +208,25 @@ async def test_knowledge_context_department_filter(client, db):
     await db.flush()
 
     # Department-specific entry
-    db.add(KnowledgeEntry(
-        question="Road repair request?",
-        answer="Call 311.",
-        language="en",
-        department_id=dept.id,
-        is_active=True,
-    ))
+    db.add(
+        KnowledgeEntry(
+            question="Road repair request?",
+            answer="Call 311.",
+            language="en",
+            department_id=dept.id,
+            is_active=True,
+        )
+    )
     # Global entry (no department)
-    db.add(KnowledgeEntry(
-        question="General hours?",
-        answer="9am-5pm Mon-Fri.",
-        language="en",
-        department_id=None,
-        is_active=True,
-    ))
+    db.add(
+        KnowledgeEntry(
+            question="General hours?",
+            answer="9am-5pm Mon-Fri.",
+            language="en",
+            department_id=None,
+            is_active=True,
+        )
+    )
     await db.flush()
 
     # Without department filter — only global entries

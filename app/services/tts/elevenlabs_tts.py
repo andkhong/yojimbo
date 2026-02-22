@@ -79,9 +79,7 @@ class ElevenLabsTTSProvider(TTSProvider):
             self._client = ElevenLabs(api_key=self._api_key)
             return self._client
         except ImportError as e:
-            raise RuntimeError(
-                "ElevenLabs SDK not installed. Run: pip install elevenlabs"
-            ) from e
+            raise RuntimeError("ElevenLabs SDK not installed. Run: pip install elevenlabs") from e
 
     @property
     def name(self) -> str:

@@ -108,6 +108,7 @@ class TimeSlotResponse(BaseModel):
 
 class BulkSlotGenerateRequest(BaseModel):
     """Bulk-generate slots for specified days within a time window."""
+
     days_of_week: list[int]  # 0=Mon ... 6=Sun
     start_time: time
     end_time: time

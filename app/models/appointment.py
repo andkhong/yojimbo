@@ -12,9 +12,7 @@ class Appointment(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     contact_id: Mapped[int] = mapped_column(Integer, ForeignKey("contacts.id"))
     department_id: Mapped[int] = mapped_column(Integer, ForeignKey("departments.id"))
-    staff_member_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("staff_members.id")
-    )
+    staff_member_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("staff_members.id"))
     call_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("calls.id"))
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)

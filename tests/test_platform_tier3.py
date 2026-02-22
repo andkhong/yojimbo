@@ -103,10 +103,26 @@ async def test_export_csv_empty(client):
 async def test_export_json_with_data(client, db):
     """Export includes call data correctly."""
     now = datetime.utcnow()
-    db.add(Call(twilio_call_sid="CA_exp1", direction="inbound", status="completed",
-                detected_language="en", resolution_status="resolved", started_at=now))
-    db.add(Call(twilio_call_sid="CA_exp2", direction="inbound", status="completed",
-                detected_language="es", resolution_status="escalated", started_at=now))
+    db.add(
+        Call(
+            twilio_call_sid="CA_exp1",
+            direction="inbound",
+            status="completed",
+            detected_language="en",
+            resolution_status="resolved",
+            started_at=now,
+        )
+    )
+    db.add(
+        Call(
+            twilio_call_sid="CA_exp2",
+            direction="inbound",
+            status="completed",
+            detected_language="es",
+            resolution_status="escalated",
+            started_at=now,
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/analytics/export?format=json&days=30")
@@ -122,8 +138,15 @@ async def test_export_json_with_data(client, db):
 async def test_export_csv_with_data(client, db):
     """Export CSV contains all rows for data."""
     now = datetime.utcnow()
-    db.add(Call(twilio_call_sid="CA_csv1", direction="inbound", status="completed",
-                detected_language="en", started_at=now))
+    db.add(
+        Call(
+            twilio_call_sid="CA_csv1",
+            direction="inbound",
+            status="completed",
+            detected_language="en",
+            started_at=now,
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/analytics/export?format=csv&days=30")
@@ -149,12 +172,14 @@ async def test_calls_pagination(client, db):
     """Calls list respects per_page limit."""
     now = datetime.utcnow()
     for i in range(10):
-        db.add(Call(
-            twilio_call_sid=f"CA_page_{i:03d}",
-            direction="inbound",
-            status="completed",
-            started_at=now - timedelta(minutes=i),
-        ))
+        db.add(
+            Call(
+                twilio_call_sid=f"CA_page_{i:03d}",
+                direction="inbound",
+                status="completed",
+                started_at=now - timedelta(minutes=i),
+            )
+        )
     await db.flush()
 
     resp = await client.get("/api/calls?per_page=3&page=1")
@@ -183,12 +208,14 @@ async def test_contacts_pagination(client, db):
 async def test_users_pagination(client, db):
     """Users list respects per_page and page params."""
     for i in range(6):
-        db.add(DashboardUser(
-            username=f"page_user_{i}",
-            password_hash=hash_password("pw"),
-            name=f"User {i}",
-            role="operator",
-        ))
+        db.add(
+            DashboardUser(
+                username=f"page_user_{i}",
+                password_hash=hash_password("pw"),
+                name=f"User {i}",
+                role="operator",
+            )
+        )
     await db.flush()
 
     resp = await client.get("/api/users?per_page=3&page=1")
@@ -213,6 +240,7 @@ async def test_knowledge_pagination(client, db):
 async def test_audit_logs_pagination(client, db):
     """Audit logs respect per_page."""
     from app.models.audit_log import AuditLog
+
     for i in range(10):
         db.add(AuditLog(action="CREATE", resource_type="department", resource_id=str(i)))
     await db.flush()
@@ -357,15 +385,17 @@ async def test_past_appointments_not_in_pending(client, db):
     await db.flush()
 
     # Appointment in the past (2 days ago)
-    db.add(Appointment(
-        contact_id=contact.id,
-        department_id=dept.id,
-        title="Past Appt",
-        status="confirmed",
-        reminder_sent=False,
-        scheduled_start=datetime.utcnow() - timedelta(days=2),
-        scheduled_end=datetime.utcnow() - timedelta(days=2) + timedelta(hours=1),
-    ))
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept.id,
+            title="Past Appt",
+            status="confirmed",
+            reminder_sent=False,
+            scheduled_start=datetime.utcnow() - timedelta(days=2),
+            scheduled_end=datetime.utcnow() - timedelta(days=2) + timedelta(hours=1),
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/reminders/pending?hours_ahead=24")
@@ -383,15 +413,17 @@ async def test_already_reminded_not_in_pending(client, db):
     db.add(dept)
     await db.flush()
 
-    db.add(Appointment(
-        contact_id=contact.id,
-        department_id=dept.id,
-        title="Already Reminded",
-        status="confirmed",
-        reminder_sent=True,  # Already sent!
-        scheduled_start=datetime.utcnow() + timedelta(hours=2),
-        scheduled_end=datetime.utcnow() + timedelta(hours=3),
-    ))
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept.id,
+            title="Already Reminded",
+            status="confirmed",
+            reminder_sent=True,  # Already sent!
+            scheduled_start=datetime.utcnow() + timedelta(hours=2),
+            scheduled_end=datetime.utcnow() + timedelta(hours=3),
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/reminders/pending?hours_ahead=24")
@@ -413,13 +445,15 @@ async def test_contact_history_pagination(client, db):
     # Add 5 calls
     now = datetime.utcnow()
     for i in range(5):
-        db.add(Call(
-            twilio_call_sid=f"CA_hpg_{i}",
-            contact_id=contact.id,
-            direction="inbound",
-            status="completed",
-            started_at=now - timedelta(minutes=i),
-        ))
+        db.add(
+            Call(
+                twilio_call_sid=f"CA_hpg_{i}",
+                contact_id=contact.id,
+                direction="inbound",
+                status="completed",
+                started_at=now - timedelta(minutes=i),
+            )
+        )
     await db.flush()
 
     resp = await client.get(f"/api/contacts/{contact.id}/history?per_page=2&page=1")
@@ -458,8 +492,12 @@ async def test_department_phone_number_conflict(client):
     d1_id = resp1.json()["department"]["id"]
     d2_id = resp2.json()["department"]["id"]
 
-    await client.post(f"/api/departments/{d1_id}/phone-number", json={"phone_number": "+15555000001"})
-    resp = await client.post(f"/api/departments/{d2_id}/phone-number", json={"phone_number": "+15555000001"})
+    await client.post(
+        f"/api/departments/{d1_id}/phone-number", json={"phone_number": "+15555000001"}
+    )
+    resp = await client.post(
+        f"/api/departments/{d2_id}/phone-number", json={"phone_number": "+15555000001"}
+    )
     assert resp.status_code == 409
 
 
@@ -533,10 +571,24 @@ async def test_analytics_department_filter(client, db):
     await db.flush()
 
     now = datetime.utcnow()
-    db.add(Call(twilio_call_sid="CA_dept_flt", direction="inbound", status="completed",
-                department_id=dept.id, started_at=now))
-    db.add(Call(twilio_call_sid="CA_other_flt", direction="inbound", status="completed",
-                department_id=None, started_at=now))
+    db.add(
+        Call(
+            twilio_call_sid="CA_dept_flt",
+            direction="inbound",
+            status="completed",
+            department_id=dept.id,
+            started_at=now,
+        )
+    )
+    db.add(
+        Call(
+            twilio_call_sid="CA_other_flt",
+            direction="inbound",
+            status="completed",
+            department_id=None,
+            started_at=now,
+        )
+    )
     await db.flush()
 
     resp = await client.get(f"/api/analytics/calls?department_id={dept.id}&days=30")
@@ -558,15 +610,21 @@ async def test_sla_excludes_in_progress_calls(client, db):
 
     now = datetime.utcnow()
     # In-progress should NOT count
-    db.add(Call(twilio_call_sid="CA_sla_ip", direction="inbound", status="in_progress",
-                department_id=dept.id, duration_seconds=120, started_at=now))
+    db.add(
+        Call(
+            twilio_call_sid="CA_sla_ip",
+            direction="inbound",
+            status="in_progress",
+            department_id=dept.id,
+            duration_seconds=120,
+            started_at=now,
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/reports/sla?days=30")
     assert resp.status_code == 200
-    dept_row = next(
-        (d for d in resp.json()["departments"] if d["department_id"] == dept.id), None
-    )
+    dept_row = next((d for d in resp.json()["departments"] if d["department_id"] == dept.id), None)
     assert dept_row is not None
     assert dept_row["total_completed"] == 0
 
@@ -579,8 +637,16 @@ async def test_sla_excludes_in_progress_calls(client, db):
 @pytest.mark.asyncio
 async def test_user_filter_by_role(client, db):
     """Users can be filtered by role parameter."""
-    db.add(DashboardUser(username="sup1", password_hash=hash_password("p"), name="Sup 1", role="supervisor"))
-    db.add(DashboardUser(username="op1b", password_hash=hash_password("p"), name="Op 1b", role="operator"))
+    db.add(
+        DashboardUser(
+            username="sup1", password_hash=hash_password("p"), name="Sup 1", role="supervisor"
+        )
+    )
+    db.add(
+        DashboardUser(
+            username="op1b", password_hash=hash_password("p"), name="Op 1b", role="operator"
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/users?role=supervisor")
@@ -592,7 +658,15 @@ async def test_user_filter_by_role(client, db):
 @pytest.mark.asyncio
 async def test_user_activate_already_active(client, db):
     """Activating an already-active user is idempotent."""
-    db.add(DashboardUser(username="active_u", password_hash=hash_password("p"), name="Active", role="operator", is_active=True))
+    db.add(
+        DashboardUser(
+            username="active_u",
+            password_hash=hash_password("p"),
+            name="Active",
+            role="operator",
+            is_active=True,
+        )
+    )
     await db.flush()
     resp = await client.get("/api/users?role=operator")
     uid = resp.json()["users"][-1]["id"]

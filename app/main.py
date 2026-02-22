@@ -107,56 +107,64 @@ async def dashboard_page(request: Request, db: AsyncSession = Depends(get_db)):
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Stats
-    today_calls = (await db.execute(
-        select(func.count()).where(Call.started_at >= today_start)
-    )).scalar() or 0
+    today_calls = (
+        await db.execute(select(func.count()).where(Call.started_at >= today_start))
+    ).scalar() or 0
 
-    active_calls = (await db.execute(
-        select(func.count()).where(Call.status.in_(["ringing", "in_progress"]))
-    )).scalar() or 0
+    active_calls = (
+        await db.execute(select(func.count()).where(Call.status.in_(["ringing", "in_progress"])))
+    ).scalar() or 0
 
-    today_appts = (await db.execute(
-        select(func.count()).where(
-            Appointment.scheduled_start >= today_start,
-            Appointment.scheduled_start < today_start + timedelta(days=1),
-            Appointment.status == "confirmed",
+    today_appts = (
+        await db.execute(
+            select(func.count()).where(
+                Appointment.scheduled_start >= today_start,
+                Appointment.scheduled_start < today_start + timedelta(days=1),
+                Appointment.status == "confirmed",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    total_contacts = (await db.execute(
-        select(func.count()).select_from(Contact)
-    )).scalar() or 0
+    total_contacts = (await db.execute(select(func.count()).select_from(Contact))).scalar() or 0
 
-    lang_rows = (await db.execute(
-        select(Call.detected_language, func.count())
-        .where(Call.started_at >= today_start, Call.detected_language.isnot(None))
-        .group_by(Call.detected_language)
-    )).all()
+    lang_rows = (
+        await db.execute(
+            select(Call.detected_language, func.count())
+            .where(Call.started_at >= today_start, Call.detected_language.isnot(None))
+            .group_by(Call.detected_language)
+        )
+    ).all()
     language_breakdown = {row[0]: row[1] for row in lang_rows}
 
     # Recent activity
     activities = []
-    recent_calls = (await db.execute(
-        select(Call).order_by(Call.started_at.desc()).limit(10)
-    )).scalars().all()
+    recent_calls = (
+        (await db.execute(select(Call).order_by(Call.started_at.desc()).limit(10))).scalars().all()
+    )
     for c in recent_calls:
-        activities.append({
-            "type": "call",
-            "description": f"{'Inbound' if c.direction == 'inbound' else 'Outbound'} call ({c.status})",
-            "timestamp": c.started_at.isoformat(),
-            "language": c.detected_language,
-        })
+        activities.append(
+            {
+                "type": "call",
+                "description": f"{'Inbound' if c.direction == 'inbound' else 'Outbound'} call ({c.status})",
+                "timestamp": c.started_at.isoformat(),
+                "language": c.detected_language,
+            }
+        )
 
-    recent_appts = (await db.execute(
-        select(Appointment).order_by(Appointment.created_at.desc()).limit(10)
-    )).scalars().all()
+    recent_appts = (
+        (await db.execute(select(Appointment).order_by(Appointment.created_at.desc()).limit(10)))
+        .scalars()
+        .all()
+    )
     for a in recent_appts:
-        activities.append({
-            "type": "appointment",
-            "description": f"Appointment: {a.title} ({a.status})",
-            "timestamp": a.created_at.isoformat(),
-            "language": a.language,
-        })
+        activities.append(
+            {
+                "type": "appointment",
+                "description": f"Appointment: {a.title} ({a.status})",
+                "timestamp": a.created_at.isoformat(),
+                "language": a.language,
+            }
+        )
 
     activities.sort(key=lambda x: x["timestamp"], reverse=True)
 
@@ -194,25 +202,23 @@ async def calls_page(
     if status:
         query = query.where(Call.status == status)
 
-    total = (await db.execute(
-        select(func.count()).select_from(query.subquery())
-    )).scalar() or 0
+    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
 
-    calls = (await db.execute(
-        query.offset((page - 1) * per_page).limit(per_page)
-    )).scalars().all()
+    calls = (await db.execute(query.offset((page - 1) * per_page).limit(per_page))).scalars().all()
 
     calls_data = []
     for c in calls:
-        calls_data.append({
-            "id": c.id,
-            "direction": c.direction,
-            "status": c.status,
-            "detected_language": c.detected_language,
-            "duration_seconds": c.duration_seconds,
-            "summary": c.summary,
-            "started_at": c.started_at.isoformat() if c.started_at else "",
-        })
+        calls_data.append(
+            {
+                "id": c.id,
+                "direction": c.direction,
+                "status": c.status,
+                "detected_language": c.detected_language,
+                "duration_seconds": c.duration_seconds,
+                "summary": c.summary,
+                "started_at": c.started_at.isoformat() if c.started_at else "",
+            }
+        )
 
     return templates.TemplateResponse(
         "dashboard/calls.html",
@@ -252,21 +258,29 @@ async def appointments_page(
         query = query.where(Appointment.department_id == department_id)
 
     appointments = (await db.execute(query)).scalars().all()
-    departments = (await db.execute(
-        select(Department).where(Department.is_active.is_(True)).order_by(Department.name)
-    )).scalars().all()
+    departments = (
+        (
+            await db.execute(
+                select(Department).where(Department.is_active.is_(True)).order_by(Department.name)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     appts_data = []
     for a in appointments:
-        appts_data.append({
-            "id": a.id,
-            "title": a.title,
-            "description": a.description,
-            "status": a.status,
-            "scheduled_start": a.scheduled_start.isoformat(),
-            "scheduled_end": a.scheduled_end.isoformat(),
-            "language": a.language,
-        })
+        appts_data.append(
+            {
+                "id": a.id,
+                "title": a.title,
+                "description": a.description,
+                "status": a.status,
+                "scheduled_start": a.scheduled_start.isoformat(),
+                "scheduled_end": a.scheduled_end.isoformat(),
+                "language": a.language,
+            }
+        )
 
     return templates.TemplateResponse(
         "dashboard/appointments.html",
@@ -304,23 +318,23 @@ async def contacts_page(
             )
         )
 
-    total = (await db.execute(
-        select(func.count()).select_from(query.subquery())
-    )).scalar() or 0
+    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
 
-    contacts = (await db.execute(
-        query.offset((page - 1) * per_page).limit(per_page)
-    )).scalars().all()
+    contacts = (
+        (await db.execute(query.offset((page - 1) * per_page).limit(per_page))).scalars().all()
+    )
 
     contacts_data = []
     for c in contacts:
-        contacts_data.append({
-            "name": c.name,
-            "phone_number": c.phone_number,
-            "preferred_language": c.preferred_language,
-            "email": c.email,
-            "created_at": c.created_at.isoformat(),
-        })
+        contacts_data.append(
+            {
+                "name": c.name,
+                "phone_number": c.phone_number,
+                "preferred_language": c.preferred_language,
+                "email": c.email,
+                "created_at": c.created_at.isoformat(),
+            }
+        )
 
     return templates.TemplateResponse(
         "dashboard/contacts.html",

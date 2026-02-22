@@ -30,5 +30,7 @@ class AgentConfig(Base):
     value: Mapped[str] = mapped_column(Text)
     description: Mapped[str | None] = mapped_column(Text)
     updated_by: Mapped[str | None] = mapped_column(String(100))
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

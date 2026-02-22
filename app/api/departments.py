@@ -46,25 +46,37 @@ async def get_department(
     db: AsyncSession = Depends(get_db),
 ):
     """Return a department with its staff members and time slots."""
-    dept = (await db.execute(
-        select(Department).where(Department.id == department_id)
-    )).scalar_one_or_none()
+    dept = (
+        await db.execute(select(Department).where(Department.id == department_id))
+    ).scalar_one_or_none()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
 
-    staff = (await db.execute(
-        select(StaffMember).where(
-            StaffMember.department_id == department_id,
-            StaffMember.is_active.is_(True),
+    staff = (
+        (
+            await db.execute(
+                select(StaffMember).where(
+                    StaffMember.department_id == department_id,
+                    StaffMember.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
-    time_slots = (await db.execute(
-        select(TimeSlot).where(
-            TimeSlot.department_id == department_id,
-            TimeSlot.is_active.is_(True),
+    time_slots = (
+        (
+            await db.execute(
+                select(TimeSlot).where(
+                    TimeSlot.department_id == department_id,
+                    TimeSlot.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
     return {
         "department": DepartmentResponse.model_validate(dept),
@@ -88,60 +100,70 @@ async def get_department_stats(
     db: AsyncSession = Depends(get_db),
 ) -> DepartmentStatsResponse:
     """Return call counts, appointment counts, and resolution rate for a department."""
-    dept = (await db.execute(
-        select(Department).where(Department.id == department_id)
-    )).scalar_one_or_none()
+    dept = (
+        await db.execute(select(Department).where(Department.id == department_id))
+    ).scalar_one_or_none()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
 
     now = datetime.utcnow()
 
     # Call counts
-    total_calls = (await db.execute(
-        select(func.count()).where(Call.department_id == department_id)
-    )).scalar() or 0
+    total_calls = (
+        await db.execute(select(func.count()).where(Call.department_id == department_id))
+    ).scalar() or 0
 
-    active_calls = (await db.execute(
-        select(func.count()).where(
-            Call.department_id == department_id,
-            Call.status.in_(["ringing", "in_progress"]),
+    active_calls = (
+        await db.execute(
+            select(func.count()).where(
+                Call.department_id == department_id,
+                Call.status.in_(["ringing", "in_progress"]),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    resolved_calls = (await db.execute(
-        select(func.count()).where(
-            Call.department_id == department_id,
-            Call.resolution_status == "resolved",
+    resolved_calls = (
+        await db.execute(
+            select(func.count()).where(
+                Call.department_id == department_id,
+                Call.resolution_status == "resolved",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    escalated_calls = (await db.execute(
-        select(func.count()).where(
-            Call.department_id == department_id,
-            Call.resolution_status == "escalated",
+    escalated_calls = (
+        await db.execute(
+            select(func.count()).where(
+                Call.department_id == department_id,
+                Call.resolution_status == "escalated",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # Appointment counts
-    total_appts = (await db.execute(
-        select(func.count()).where(Appointment.department_id == department_id)
-    )).scalar() or 0
+    total_appts = (
+        await db.execute(select(func.count()).where(Appointment.department_id == department_id))
+    ).scalar() or 0
 
-    upcoming_appts = (await db.execute(
-        select(func.count()).where(
-            Appointment.department_id == department_id,
-            Appointment.scheduled_start >= now,
-            Appointment.status == "confirmed",
+    upcoming_appts = (
+        await db.execute(
+            select(func.count()).where(
+                Appointment.department_id == department_id,
+                Appointment.scheduled_start >= now,
+                Appointment.status == "confirmed",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # Resolution rate: resolved / (resolved + escalated + abandoned) * 100
-    completed_calls = (await db.execute(
-        select(func.count()).where(
-            Call.department_id == department_id,
-            Call.status == "completed",
+    completed_calls = (
+        await db.execute(
+            select(func.count()).where(
+                Call.department_id == department_id,
+                Call.status == "completed",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     resolution_rate = 0.0
     if completed_calls > 0:
@@ -167,13 +189,17 @@ async def create_department(
 ):
     """Create a new department. Code and name must be unique."""
     # Check uniqueness
-    existing = (await db.execute(
-        select(Department).where(
-            (Department.code == data.code) | (Department.name == data.name)
+    existing = (
+        await db.execute(
+            select(Department).where(
+                (Department.code == data.code) | (Department.name == data.name)
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if existing:
-        raise HTTPException(status_code=409, detail="Department with that code or name already exists")
+        raise HTTPException(
+            status_code=409, detail="Department with that code or name already exists"
+        )
 
     dept = Department(**data.model_dump())
     db.add(dept)
@@ -189,9 +215,9 @@ async def replace_department(
     db: AsyncSession = Depends(get_db),
 ):
     """Replace all fields of a department."""
-    dept = (await db.execute(
-        select(Department).where(Department.id == department_id)
-    )).scalar_one_or_none()
+    dept = (
+        await db.execute(select(Department).where(Department.id == department_id))
+    ).scalar_one_or_none()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
 
@@ -208,9 +234,9 @@ async def update_department(
     db: AsyncSession = Depends(get_db),
 ):
     """Update one or more fields of a department."""
-    dept = (await db.execute(
-        select(Department).where(Department.id == department_id)
-    )).scalar_one_or_none()
+    dept = (
+        await db.execute(select(Department).where(Department.id == department_id))
+    ).scalar_one_or_none()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
 
@@ -226,9 +252,9 @@ async def delete_department(
     db: AsyncSession = Depends(get_db),
 ):
     """Soft-delete a department by marking it inactive."""
-    dept = (await db.execute(
-        select(Department).where(Department.id == department_id)
-    )).scalar_one_or_none()
+    dept = (
+        await db.execute(select(Department).where(Department.id == department_id))
+    ).scalar_one_or_none()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
 
@@ -236,26 +262,30 @@ async def delete_department(
     return None
 
 
-@router.post("/{department_id}/phone-number", summary="Assign a Twilio phone number to a department")
+@router.post(
+    "/{department_id}/phone-number", summary="Assign a Twilio phone number to a department"
+)
 async def assign_phone_number(
     department_id: int,
     data: PhoneNumberAssignRequest,
     db: AsyncSession = Depends(get_db),
 ):
     """Assign a Twilio phone number to a department for call routing."""
-    dept = (await db.execute(
-        select(Department).where(Department.id == department_id)
-    )).scalar_one_or_none()
+    dept = (
+        await db.execute(select(Department).where(Department.id == department_id))
+    ).scalar_one_or_none()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
 
     # Check if phone number is already assigned to another department
-    existing = (await db.execute(
-        select(Department).where(
-            Department.twilio_phone_number == data.phone_number,
-            Department.id != department_id,
+    existing = (
+        await db.execute(
+            select(Department).where(
+                Department.twilio_phone_number == data.phone_number,
+                Department.id != department_id,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if existing:
         raise HTTPException(
             status_code=409,
@@ -273,13 +303,16 @@ async def add_staff_member(
     db: AsyncSession = Depends(get_db),
 ):
     """Add a staff member to a department."""
-    dept = (await db.execute(
-        select(Department).where(Department.id == department_id)
-    )).scalar_one_or_none()
+    dept = (
+        await db.execute(select(Department).where(Department.id == department_id))
+    ).scalar_one_or_none()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
 
-    staff = StaffMember(department_id=department_id, **{k: v for k, v in data.model_dump().items() if k != "department_id"})
+    staff = StaffMember(
+        department_id=department_id,
+        **{k: v for k, v in data.model_dump().items() if k != "department_id"},
+    )
     db.add(staff)
     await db.flush()
     await db.refresh(staff)
@@ -292,9 +325,9 @@ async def add_staff_member(
 
 
 async def _get_dept_or_404(department_id: int, db: AsyncSession) -> Department:
-    dept = (await db.execute(
-        select(Department).where(Department.id == department_id)
-    )).scalar_one_or_none()
+    dept = (
+        await db.execute(select(Department).where(Department.id == department_id))
+    ).scalar_one_or_none()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
     return dept
@@ -308,8 +341,10 @@ async def list_time_slots(
 ):
     """Return all time slots for a department."""
     await _get_dept_or_404(department_id, db)
-    query = select(TimeSlot).where(TimeSlot.department_id == department_id).order_by(
-        TimeSlot.day_of_week, TimeSlot.start_time
+    query = (
+        select(TimeSlot)
+        .where(TimeSlot.department_id == department_id)
+        .order_by(TimeSlot.day_of_week, TimeSlot.start_time)
     )
     if not include_inactive:
         query = query.where(TimeSlot.is_active.is_(True))
@@ -341,12 +376,14 @@ async def update_time_slot(
 ):
     """Update one or more fields on a time slot."""
     await _get_dept_or_404(department_id, db)
-    slot = (await db.execute(
-        select(TimeSlot).where(
-            TimeSlot.id == slot_id,
-            TimeSlot.department_id == department_id,
+    slot = (
+        await db.execute(
+            select(TimeSlot).where(
+                TimeSlot.id == slot_id,
+                TimeSlot.department_id == department_id,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if not slot:
         raise HTTPException(status_code=404, detail="Time slot not found")
 
@@ -364,12 +401,14 @@ async def delete_time_slot(
 ):
     """Soft-delete a time slot by marking it inactive."""
     await _get_dept_or_404(department_id, db)
-    slot = (await db.execute(
-        select(TimeSlot).where(
-            TimeSlot.id == slot_id,
-            TimeSlot.department_id == department_id,
+    slot = (
+        await db.execute(
+            select(TimeSlot).where(
+                TimeSlot.id == slot_id,
+                TimeSlot.department_id == department_id,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if not slot:
         raise HTTPException(status_code=404, detail="Time slot not found")
     slot.is_active = False
@@ -397,13 +436,19 @@ async def bulk_generate_slots(
 
         if data.replace_existing:
             # Deactivate existing slots for this day
-            existing = (await db.execute(
-                select(TimeSlot).where(
-                    TimeSlot.department_id == department_id,
-                    TimeSlot.day_of_week == day,
-                    TimeSlot.is_active.is_(True),
+            existing = (
+                (
+                    await db.execute(
+                        select(TimeSlot).where(
+                            TimeSlot.department_id == department_id,
+                            TimeSlot.day_of_week == day,
+                            TimeSlot.is_active.is_(True),
+                        )
+                    )
                 )
-            )).scalars().all()
+                .scalars()
+                .all()
+            )
             for s in existing:
                 s.is_active = False
 
@@ -414,7 +459,9 @@ async def bulk_generate_slots(
         end_bound = _dt.combine(_dt.today(), data.end_time)
         current = base
         while current < end_bound:
-            slot_end = current + __import__("datetime").timedelta(minutes=data.slot_duration_minutes)
+            slot_end = current + __import__("datetime").timedelta(
+                minutes=data.slot_duration_minutes
+            )
             if slot_end > end_bound:
                 break
             slot = TimeSlot(
@@ -426,7 +473,9 @@ async def bulk_generate_slots(
                 max_concurrent=data.max_concurrent,
             )
             db.add(slot)
-            created.append({"day": day, "start": current.strftime("%H:%M"), "end": slot_end.strftime("%H:%M")})
+            created.append(
+                {"day": day, "start": current.strftime("%H:%M"), "end": slot_end.strftime("%H:%M")}
+            )
             current = slot_end
 
     await db.flush()
@@ -454,13 +503,21 @@ async def check_slot_availability(
 
     day_of_week = target_date.weekday()  # 0=Monday
 
-    slots = (await db.execute(
-        select(TimeSlot).where(
-            TimeSlot.department_id == department_id,
-            TimeSlot.day_of_week == day_of_week,
-            TimeSlot.is_active.is_(True),
-        ).order_by(TimeSlot.start_time)
-    )).scalars().all()
+    slots = (
+        (
+            await db.execute(
+                select(TimeSlot)
+                .where(
+                    TimeSlot.department_id == department_id,
+                    TimeSlot.day_of_week == day_of_week,
+                    TimeSlot.is_active.is_(True),
+                )
+                .order_by(TimeSlot.start_time)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     # Count existing confirmed appointments for each slot
     from app.models.appointment import Appointment
@@ -470,25 +527,29 @@ async def check_slot_availability(
         slot_start = _datetime.datetime.combine(target_date, slot.start_time)
         slot_end = _datetime.datetime.combine(target_date, slot.end_time)
 
-        booked = (await db.execute(
-            select(func.count()).where(
-                Appointment.department_id == department_id,
-                Appointment.scheduled_start >= slot_start,
-                Appointment.scheduled_start < slot_end,
-                Appointment.status == "confirmed",
+        booked = (
+            await db.execute(
+                select(func.count()).where(
+                    Appointment.department_id == department_id,
+                    Appointment.scheduled_start >= slot_start,
+                    Appointment.scheduled_start < slot_end,
+                    Appointment.status == "confirmed",
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
 
         available_slots = max(0, slot.max_concurrent - booked)
-        availability.append({
-            "slot_id": slot.id,
-            "start_time": slot.start_time.strftime("%H:%M"),
-            "end_time": slot.end_time.strftime("%H:%M"),
-            "max_concurrent": slot.max_concurrent,
-            "booked": booked,
-            "available": available_slots,
-            "is_available": available_slots > 0,
-        })
+        availability.append(
+            {
+                "slot_id": slot.id,
+                "start_time": slot.start_time.strftime("%H:%M"),
+                "end_time": slot.end_time.strftime("%H:%M"),
+                "max_concurrent": slot.max_concurrent,
+                "booked": booked,
+                "available": available_slots,
+                "is_available": available_slots > 0,
+            }
+        )
 
     return {
         "department_id": department_id,

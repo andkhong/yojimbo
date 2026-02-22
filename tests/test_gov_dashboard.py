@@ -36,14 +36,16 @@ async def test_gov_summary_with_calls(client, db):
     """Summary includes call metrics."""
     now = datetime.utcnow()
     for i in range(3):
-        db.add(Call(
-            twilio_call_sid=f"CA_gov_{i}",
-            direction="inbound",
-            status="completed",
-            detected_language=["en", "es", "en"][i],
-            resolution_status=["resolved", "resolved", "escalated"][i],
-            started_at=now - timedelta(hours=i),
-        ))
+        db.add(
+            Call(
+                twilio_call_sid=f"CA_gov_{i}",
+                direction="inbound",
+                status="completed",
+                detected_language=["en", "es", "en"][i],
+                resolution_status=["resolved", "resolved", "escalated"][i],
+                started_at=now - timedelta(hours=i),
+            )
+        )
     await db.flush()
 
     resp = await client.get("/api/gov/summary?days=7")
@@ -68,19 +70,28 @@ async def test_gov_summary_with_appointments(client, db):
 
     now = datetime.utcnow()
     # Upcoming confirmed
-    db.add(Appointment(
-        contact_id=contact.id, department_id=dept.id,
-        title="Tax Consult", status="confirmed", reminder_sent=False,
-        scheduled_start=now + timedelta(hours=2),
-        scheduled_end=now + timedelta(hours=3),
-    ))
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept.id,
+            title="Tax Consult",
+            status="confirmed",
+            reminder_sent=False,
+            scheduled_start=now + timedelta(hours=2),
+            scheduled_end=now + timedelta(hours=3),
+        )
+    )
     # Past no-show
-    db.add(Appointment(
-        contact_id=contact.id, department_id=dept.id,
-        title="Old Appt", status="no_show",
-        scheduled_start=now - timedelta(days=1),
-        scheduled_end=now - timedelta(days=1) + timedelta(hours=1),
-    ))
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept.id,
+            title="Old Appt",
+            status="no_show",
+            scheduled_start=now - timedelta(days=1),
+            scheduled_end=now - timedelta(days=1) + timedelta(hours=1),
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/gov/summary?days=7")
@@ -95,8 +106,12 @@ async def test_gov_summary_with_appointments(client, db):
 async def test_gov_summary_staff_counts(client, db):
     """Summary includes staff breakdown by role."""
     db.add(DashboardUser(username="adm1", password_hash=hash_password("p"), name="A", role="admin"))
-    db.add(DashboardUser(username="op1g", password_hash=hash_password("p"), name="B", role="operator"))
-    db.add(DashboardUser(username="op2g", password_hash=hash_password("p"), name="C", role="operator"))
+    db.add(
+        DashboardUser(username="op1g", password_hash=hash_password("p"), name="B", role="operator")
+    )
+    db.add(
+        DashboardUser(username="op2g", password_hash=hash_password("p"), name="C", role="operator")
+    )
     await db.flush()
 
     resp = await client.get("/api/gov/summary")
@@ -123,19 +138,23 @@ async def test_gov_summary_period_filter(client, db):
     """Summary respects the days period parameter."""
     now = datetime.utcnow()
     # Old call (31 days ago)
-    db.add(Call(
-        twilio_call_sid="CA_old_gov",
-        direction="inbound",
-        status="completed",
-        started_at=now - timedelta(days=31),
-    ))
+    db.add(
+        Call(
+            twilio_call_sid="CA_old_gov",
+            direction="inbound",
+            status="completed",
+            started_at=now - timedelta(days=31),
+        )
+    )
     # Recent call
-    db.add(Call(
-        twilio_call_sid="CA_new_gov",
-        direction="inbound",
-        status="completed",
-        started_at=now - timedelta(days=1),
-    ))
+    db.add(
+        Call(
+            twilio_call_sid="CA_new_gov",
+            direction="inbound",
+            status="completed",
+            started_at=now - timedelta(days=1),
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/gov/summary?days=7")
@@ -187,13 +206,15 @@ async def test_compliance_sla_metrics(client, db):
     now = datetime.utcnow()
     # 2 within SLA (< 300s), 1 over
     for dur in [100, 200, 500]:
-        db.add(Call(
-            twilio_call_sid=f"CA_comp_{dur}",
-            direction="inbound",
-            status="completed",
-            duration_seconds=dur,
-            started_at=now,
-        ))
+        db.add(
+            Call(
+                twilio_call_sid=f"CA_comp_{dur}",
+                direction="inbound",
+                status="completed",
+                duration_seconds=dur,
+                started_at=now,
+            )
+        )
     await db.flush()
 
     resp = await client.get("/api/gov/compliance?days=30")
