@@ -85,3 +85,22 @@ async def seeded_db(db: AsyncSession):
     await db.commit()
 
     return db
+
+
+@pytest_asyncio.fixture
+async def seeded_client(seeded_db: AsyncSession):
+    """Async HTTP client wired to a seeded database."""
+    from app.main import app
+
+    async def override_get_db():
+        yield seeded_db
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as ac:
+        yield ac
+
+    app.dependency_overrides.clear()

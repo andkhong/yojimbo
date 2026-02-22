@@ -1,71 +1,134 @@
-# Yojimbo Builder — WORKLOG
+# WORKLOG
 
-## 2026-02-21 22:33 PST — Tier 1 + 2 COMPLETE — PR #4 open
+## 2026-02-21 10:13 PST — Milestone 5: Latency optimization — native multilingual Gemini
 
-### Shipped this session
-- AI Agent Configuration API (GET/PUT /api/config/agent) — persistent DB-backed config
-- Audit Log System (middleware auto-logging all POST/PUT/DELETE + GET /api/audit-logs)
-- Staff Management full CRUD + role enforcement (admin/supervisor/operator/readonly)
-- Call Analytics API (volume/languages/resolution/peak-hours/per-department)
-- Knowledge Base CRUD (GET/POST/PUT/DELETE /api/knowledge) — FAQ entries per department
-- Reminder Management API (pending/run/history)
-- Department stats endpoint + live call terminate
-- 2 Alembic migrations (agent_config table, knowledge_entry table)
-- Tests: 52 → 87 passing ✅
+### Context
+Competitor analysis identified call latency as key product risk. Current architecture
+made 2 Google Cloud Translation API calls per conversation turn (caller→EN, EN→caller).
+Gemini 2.0 Flash natively supports 40+ languages — translation was pure overhead.
 
-### Budget estimate
-- ~$0.75 spent this run
-- Total all runs: ~$1.10 / $99 budget remaining
-- Halt threshold: $80 spent
+### Architecture change
 
-### PR Status
-- PR #4 open: https://github.com/andkhong/yojimbo/pull/4 (this branch: feat/government-platform)
-- PR #3 open: feat/latency-optimization
-- PR #2 open: feat/elevenlabs-tts-scaffold
-- PR #1 open: claude/yojimbo-ai-receptionist-mvp-egv0J
+**BEFORE** (4 API hops per turn):
+```
+STT (Twilio) → translate(caller→EN) [Google] → Gemini(EN) → translate(EN→caller) [Google] → TTS (Twilio)
+```
 
-### Current branch: feat/government-platform
-### Tests: 87 passing
+**AFTER** (2 API hops per turn):
+```
+STT (Twilio) → Gemini(native caller language) → TTS (Twilio)
+```
+
+### Files changed
+- `app/core/prompts.py` — Added `LANGUAGE INSTRUCTION` block to `RECEPTIONIST_SYSTEM_PROMPT`:
+  Gemini explicitly instructed to respond natively in caller's language; lists the 5 top US
+  immigrant languages (es/zh/vi/tl/ko) plus ar/fr/de/ja; instructs mid-call language switching.
+- `app/services/ai_agent.py` — Added `ConversationSession.update_language(code)`:
+  Rebuilds `system_instruction` when Twilio confirms caller's BCP-47 language on first turn.
+  Idempotent (no-op if same language). Logs the language switch.
+- `app/ws/conversation_relay.py` — Removed `translator` import; stripped both
+  `translate_text()` calls from `prompt` event handler. Calls `session.update_language()`
+  when Twilio `lang` field differs from session default. Passes raw caller text directly
+  to Gemini. `ConversationTurn.translated_text` set to `None` (no longer needed).
+- `tests/test_ai_agent.py` — 5 new tests: attribute update, system_instruction rebuild,
+  no-op guard, all 5 immigrant languages, native-language directive present.
+
+### Also committed (missed from prior run)
+- `app/services/reminders.py` + `tests/test_reminders.py` — appointment SMS reminders
+  (see Milestone 4 below).
+
+### Results
+- ✅ 52 tests passing (was 47 before this run, 35 before reminders)
+- Branch `feat/latency-optimization` pushed to origin
+- PR ready: https://github.com/andkhong/yojimbo/pull/new/feat/latency-optimization
+
+### ElevenLabs TTS (deferred)
+Alpha decided to evaluate after translation bottleneck is resolved. ElevenLabs requires
+their SDK + a separate TTS WebSocket stream — larger architectural change, separate PR.
 
 ---
 
-## NEXT ACTIONS (Tier 3 — continue from here)
+## 2026-02-21 10:11 PST — Milestone 4: Appointment reminder SMS (Twilio)
 
-Priority order:
-1. Contact history aggregation: GET /api/contacts/{id}/history — all calls + appointments + SMS
-2. SLA report endpoint: GET /api/reports/sla?department_id=&period= — avg handle time, escalation %
-3. Department time slot bulk generation: POST /api/departments/{id}/slots/bulk
-4. WebSocket /ws/monitor — broadcast live call events to admin dashboard
-5. OpenAPI docstrings on all new endpoints (improves developer experience)
-6. Edge-case tests: pagination limits, auth failures, invalid input handling
-7. Department phone number assignment: POST /api/departments/{id}/phone-number
-8. Call transcript storage: save full transcript to Call model after call ends
-9. Export endpoints: GET /api/analytics/export?format=json (CSV future)
-10. Health check endpoint improvements: GET /api/health with DB + Twilio status
+### Actions
+- Implemented `app/services/reminders.py`:
+  - `send_appointment_reminder(appointment_id, db)` — loads appointment + contact,
+    sends SMS via Twilio, marks `reminder_sent=True`, broadcasts `reminder.sent`
+    dashboard event via existing notification service.
+  - `get_appointments_needing_reminders(db)` — 23-25h window, filters
+    `reminder_sent=False` and `status=confirmed`.
+  - `process_due_reminders(db)` — batch runner returning `{sent, failed, total}`.
+  - `_send_sms(to, body)` — Twilio client wrapper; graceful fallback (returns False,
+    logs warning) when credentials absent. No hardcoded secrets.
+- Implemented `tests/test_reminders.py` — 12 tests covering message content,
+  error paths, reminder_sent flag, window boundary filtering, batch summary.
+
+### Results
+- ✅ 47 tests passing (was 35 before this run)
+- Branch: `feat/latency-optimization` (committed together with latency work)
 
 ---
 
-## Architecture Reference
+## 2026-02-20 23:17 PST — Milestone 1: Repo scan + baseline
 
-### Key files
-- app/api/ — all REST API routes
-- app/models/ — SQLAlchemy models
-- app/services/ — business logic
-- app/ws/ — WebSocket handlers
-- app/middleware/ — auth, audit logging
-- tests/ — pytest test suite
-- alembic/ — DB migrations
+### Actions
+- Inspected repo structure and tests.
+- Searched for explicit TODO/FIXME markers (none in app/tests code).
+- Attempted project install with editable + dev deps.
+- Ran test baseline.
 
-### Test command
-.venv311/bin/pytest -q
+### Findings
+- Environment constraint: host has Python 3.9.6 only; project requires Python >=3.11.
+- Full install (`pip install -e ".[dev]"`) fails on python version gate.
+- Best-effort dependency install under 3.9 succeeded for running tests.
+- Test run fails at import-time:
+  - `TypeError: unsupported operand type(s) for |: 'type' and 'NoneType'`
+  - source: type hints like `int | None` in models on Python 3.9.
 
-### Lint command
-.venv311/bin/ruff check app/ tests/ --fix
+### Current baseline
+- Tests do not execute due to Python-version/type-hint incompatibility in runtime.
 
-### Git config
-user.name = Yojimbo Builder
-user.email = yojimbo-builder@openclaw.ai
+### Prioritized roadmap (proposed)
+1. **Unblock test execution in current runtime** (high impact): make type hints 3.9-safe (use `Optional[...]` or `from __future__ import annotations`) in modules loaded by tests.
+2. Run full pytest, collect functional failures.
+3. Fix highest-frequency/runtime-critical failing test cluster.
+4. Run lint/tests; commit cleanly.
+5. Optional hardening: enforce 3.11 in CI + dev bootstrap script.
 
-### Branches
-- feat/government-platform — CURRENT (Tier 1+2 done)
-- main — base branch for PRs
+### First implementation task (proposed)
+- Apply minimal compatibility patch using `from __future__ import annotations` to model modules causing import failure, then rerun pytest and address next concrete failure.
+
+## 2026-02-20 23:50 PST — Milestone 3: Python 3.11 venv + full baseline
+
+### Actions
+- Confirmed Python 3.11.14 installed via Homebrew
+- Created venv at `.venv311/` using Python 3.11
+- Installed project with dev extras (`pip install -e ".[dev]"`)
+- Ran full test suite
+
+### Results
+- ✅ 29 tests passed in 3.24s — clean baseline
+- Python version gate: resolved
+- Type-hint compat issues: resolved (native 3.11 support)
+
+### Next actions
+1. Implement highest-impact roadmap item
+2. Commit clean baseline
+3. Report next milestone
+
+---
+
+## 2026-02-20 23:40 PST — Milestone 2: Install + baseline tests re-check
+
+### Actions
+- Verified runtime Python version in venv.
+- Ran editable install with dev extras.
+- Ran `pytest -q --maxfail=1`.
+
+### Findings
+- Install gate confirmed: project requires Python >=3.11, host runtime is 3.9.6.
+- Baseline still blocked at import-time due to PEP 604 union syntax under 3.9:
+  - `app/models/appointment.py` uses `int | None`.
+
+### Decision
+- For local validation in current environment, proceed with minimal 3.9-compat type-hint patch to unblock tests.
