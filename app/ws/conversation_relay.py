@@ -16,7 +16,9 @@ from sqlalchemy import select
 
 from app.database import async_session_factory
 from app.models.call import Call, ConversationTurn
+from app.models.agent_config import AgentConfig
 from app.models.department import Department
+from app.models.knowledge import KnowledgeEntry
 from app.services.ai_agent import ConversationSession
 from app.services import notification, translator
 
@@ -148,7 +150,32 @@ async def handle_conversation_relay(websocket: WebSocket) -> None:
                         call.duration_seconds = int(
                             (call.ended_at - call.started_at).total_seconds()
                         )
+                    # Store full transcript summary from conversation history
+                    if session and session.history:
+                        lines = []
+                        for entry in session.history:
+                            role = entry.get("role", "?")
+                            content = entry.get("content", "")
+                            if isinstance(content, list):
+                                content = " ".join(
+                                    p.get("text", "") for p in content if isinstance(p, dict)
+                                )
+                            lines.append(f"[{role.upper()}] {content}")
+                        call.summary = "\n".join(lines)[:4000]  # DB safe truncation
                     await db.commit()
+
+                    # Broadcast via monitor WebSocket
+                    from app.ws.monitor import broadcast_call_event
+                    import asyncio
+                    asyncio.create_task(broadcast_call_event(
+                        "call_ended",
+                        {
+                            "call_id": call.id,
+                            "duration_seconds": call.duration_seconds,
+                            "resolution_status": call.resolution_status,
+                        },
+                        department_id=call.department_id,
+                    ))
 
                     await notification.notify_call_ended(
                         call_id=call.id,
@@ -181,6 +208,37 @@ async def _handle_setup(message: dict) -> tuple[str | None, int | None, Conversa
             for d in departments
         ]
 
+        # Load knowledge base entries for the caller's language
+        knowledge_entries = (await db.execute(
+            select(KnowledgeEntry)
+            .where(KnowledgeEntry.is_active.is_(True), KnowledgeEntry.language == language)
+            .limit(30)
+        )).scalars().all()
+
+        knowledge_context: str | None = None
+        if knowledge_entries:
+            knowledge_context = "\n\n".join(
+                f"Q: {e.question}\nA: {e.answer}" for e in knowledge_entries
+            )
+            logger.info(
+                "Loaded %d knowledge entries for language '%s'",
+                len(knowledge_entries),
+                language,
+            )
+
+        # Load DB-backed agent configuration overrides
+        db_configs = (await db.execute(
+            select(AgentConfig).where(
+                AgentConfig.key.in_(["system_prompt", "greeting_message"])
+            )
+        )).scalars().all()
+        config_map = {cfg.key: cfg.value for cfg in db_configs}
+        custom_system_prompt = config_map.get("system_prompt")
+        greeting_message = config_map.get("greeting_message")
+
+        if custom_system_prompt:
+            logger.info("Using DB-configured system prompt for call %s", call_sid)
+
         # Create or update the call record
         call = Call(
             twilio_call_sid=call_sid,
@@ -202,11 +260,27 @@ async def _handle_setup(message: dict) -> tuple[str | None, int | None, Conversa
             "direction": "inbound",
         })
 
+        # Broadcast to live-call monitor
+        from app.ws.monitor import broadcast_call_event
+        import asyncio
+        asyncio.create_task(broadcast_call_event(
+            "call_started",
+            {
+                "call_id": call_id,
+                "call_sid": call_sid,
+                "caller_number": caller_phone,
+                "language": language,
+            },
+        ))
+
     session = ConversationSession(
         call_sid=call_sid,
         caller_phone=caller_phone,
         caller_language=language,
         departments=dept_list,
+        knowledge_context=knowledge_context,
+        custom_system_prompt=custom_system_prompt,
+        greeting_message=greeting_message,
     )
 
     return call_sid, call_id, session

@@ -43,6 +43,9 @@ class ConversationSession:
         caller_phone: str,
         caller_language: str = "en",
         departments: list[dict] | None = None,
+        knowledge_context: str | None = None,
+        custom_system_prompt: str | None = None,
+        greeting_message: str | None = None,
     ):
         self.call_sid = call_sid
         self.caller_phone = caller_phone
@@ -51,21 +54,34 @@ class ConversationSession:
         self.history: list[dict] = []
         self.turn_count = 0
         self._chat_session = None
+        self.greeting_message = greeting_message  # expose for relay to use
 
         # Build the system instruction
-        dept_info = "\n".join(
-            f"- {d['name']} (ID: {d['id']}): {d.get('description', 'N/A')}. "
-            f"Hours: {d.get('operating_hours', 'Mon-Fri 9am-5pm')}"
-            for d in self.departments
-        )
-        lang_name = LANGUAGE_NAMES.get(caller_language, caller_language)
+        if custom_system_prompt:
+            # Use DB-configured system prompt directly
+            self.system_instruction = custom_system_prompt
+        else:
+            dept_info = "\n".join(
+                f"- {d['name']} (ID: {d['id']}): {d.get('description', 'N/A')}. "
+                f"Hours: {d.get('operating_hours', 'Mon-Fri 9am-5pm')}"
+                for d in self.departments
+            )
+            lang_name = LANGUAGE_NAMES.get(caller_language, caller_language)
 
-        self.system_instruction = RECEPTIONIST_SYSTEM_PROMPT.format(
-            office_name=settings.office_name,
-            current_time=datetime.now().strftime("%A, %B %d, %Y at %I:%M %p"),
-            caller_language=lang_name,
-            departments_info=dept_info or "No departments configured.",
-        )
+            self.system_instruction = RECEPTIONIST_SYSTEM_PROMPT.format(
+                office_name=settings.office_name,
+                current_time=datetime.now().strftime("%A, %B %d, %Y at %I:%M %p"),
+                caller_language=lang_name,
+                departments_info=dept_info or "No departments configured.",
+            )
+
+        # Inject knowledge base FAQ context into system prompt
+        if knowledge_context:
+            self.system_instruction += (
+                "\n\n## Knowledge Base — Frequently Asked Questions\n"
+                "Use the following Q&A pairs to answer common questions accurately:\n\n"
+                + knowledge_context
+            )
 
     def _get_tools(self):
         """Build Gemini tools configuration."""
