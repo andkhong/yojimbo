@@ -33,6 +33,17 @@ class Settings(BaseSettings):
         "Hello, thank you for calling. How can I help you today?"
     )
 
+    # ElevenLabs TTS (Phase 2 — optional, replaces Twilio TTS)
+    # Set ELEVENLABS_API_KEY to enable. Leave blank to use Twilio built-in TTS.
+    elevenlabs_api_key: str = ""
+    elevenlabs_voice_id: str = "21m00Tcm4TlvDq8ikWAM"    # Rachel — warm, professional
+    elevenlabs_model_id: str = "eleven_flash_v2_5"         # Lowest latency model
+
+    @property
+    def tts_provider_name(self) -> str:
+        """Returns active TTS provider name based on config."""
+        return "elevenlabs" if self.elevenlabs_api_key else "twilio"
+
     # Government Office
     office_name: str = "City Hall"
     default_language: str = "en"

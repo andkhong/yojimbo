@@ -1,5 +1,74 @@
 # WORKLOG
 
+## 2026-02-21 10:13 PST — Milestone 5: Latency optimization — native multilingual Gemini
+
+### Context
+Competitor analysis identified call latency as key product risk. Current architecture
+made 2 Google Cloud Translation API calls per conversation turn (caller→EN, EN→caller).
+Gemini 2.0 Flash natively supports 40+ languages — translation was pure overhead.
+
+### Architecture change
+
+**BEFORE** (4 API hops per turn):
+```
+STT (Twilio) → translate(caller→EN) [Google] → Gemini(EN) → translate(EN→caller) [Google] → TTS (Twilio)
+```
+
+**AFTER** (2 API hops per turn):
+```
+STT (Twilio) → Gemini(native caller language) → TTS (Twilio)
+```
+
+### Files changed
+- `app/core/prompts.py` — Added `LANGUAGE INSTRUCTION` block to `RECEPTIONIST_SYSTEM_PROMPT`:
+  Gemini explicitly instructed to respond natively in caller's language; lists the 5 top US
+  immigrant languages (es/zh/vi/tl/ko) plus ar/fr/de/ja; instructs mid-call language switching.
+- `app/services/ai_agent.py` — Added `ConversationSession.update_language(code)`:
+  Rebuilds `system_instruction` when Twilio confirms caller's BCP-47 language on first turn.
+  Idempotent (no-op if same language). Logs the language switch.
+- `app/ws/conversation_relay.py` — Removed `translator` import; stripped both
+  `translate_text()` calls from `prompt` event handler. Calls `session.update_language()`
+  when Twilio `lang` field differs from session default. Passes raw caller text directly
+  to Gemini. `ConversationTurn.translated_text` set to `None` (no longer needed).
+- `tests/test_ai_agent.py` — 5 new tests: attribute update, system_instruction rebuild,
+  no-op guard, all 5 immigrant languages, native-language directive present.
+
+### Also committed (missed from prior run)
+- `app/services/reminders.py` + `tests/test_reminders.py` — appointment SMS reminders
+  (see Milestone 4 below).
+
+### Results
+- ✅ 52 tests passing (was 47 before this run, 35 before reminders)
+- Branch `feat/latency-optimization` pushed to origin
+- PR ready: https://github.com/andkhong/yojimbo/pull/new/feat/latency-optimization
+
+### ElevenLabs TTS (deferred)
+Alpha decided to evaluate after translation bottleneck is resolved. ElevenLabs requires
+their SDK + a separate TTS WebSocket stream — larger architectural change, separate PR.
+
+---
+
+## 2026-02-21 10:11 PST — Milestone 4: Appointment reminder SMS (Twilio)
+
+### Actions
+- Implemented `app/services/reminders.py`:
+  - `send_appointment_reminder(appointment_id, db)` — loads appointment + contact,
+    sends SMS via Twilio, marks `reminder_sent=True`, broadcasts `reminder.sent`
+    dashboard event via existing notification service.
+  - `get_appointments_needing_reminders(db)` — 23-25h window, filters
+    `reminder_sent=False` and `status=confirmed`.
+  - `process_due_reminders(db)` — batch runner returning `{sent, failed, total}`.
+  - `_send_sms(to, body)` — Twilio client wrapper; graceful fallback (returns False,
+    logs warning) when credentials absent. No hardcoded secrets.
+- Implemented `tests/test_reminders.py` — 12 tests covering message content,
+  error paths, reminder_sent flag, window boundary filtering, batch summary.
+
+### Results
+- ✅ 47 tests passing (was 35 before this run)
+- Branch: `feat/latency-optimization` (committed together with latency work)
+
+---
+
 ## 2026-02-20 23:17 PST — Milestone 1: Repo scan + baseline
 
 ### Actions
