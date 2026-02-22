@@ -64,6 +64,57 @@ async def create_contact(
     return {"contact": ContactResponse.model_validate(contact)}
 
 
+@router.get("/search", summary="Full-text contact search with ranked results")
+async def search_contacts(
+    q: str = Query(..., min_length=1, description="Search query (name, phone, email, notes)"),
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """Search contacts by name, phone, email, or notes — ranked by match quality."""
+    q = q.strip()
+    results: list[dict] = []
+    seen: set[int] = set()
+
+    async def _fetch(where_clause, score: int) -> None:
+        rows = (await db.execute(
+            select(Contact).where(where_clause).limit(limit)
+        )).scalars().all()
+        for c in rows:
+            if c.id not in seen:
+                seen.add(c.id)
+                results.append({"contact": ContactResponse.model_validate(c), "score": score})
+
+    await _fetch(Contact.phone_number == q, score=100)          # exact phone
+    await _fetch(Contact.phone_number.ilike(f"{q}%"), score=80)  # phone prefix
+    await _fetch(
+        (Contact.name.ilike(f"%{q}%")) | (Contact.email.ilike(f"%{q}%")),
+        score=60,
+    )
+    await _fetch(Contact.notes.ilike(f"%{q}%"), score=40)       # notes
+
+    results.sort(key=lambda r: -r["score"])
+    return {"query": q, "total": len(results), "results": results[:limit]}
+
+
+@router.get("/lookup/{phone_number:path}", summary="Look up a contact by exact phone number")
+async def lookup_contact_by_phone(
+    phone_number: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Identify a caller by their E.164 phone number — used by AI agent & webhooks."""
+    contact = (await db.execute(
+        select(Contact)
+        .where(Contact.phone_number == phone_number)
+        .order_by(Contact.updated_at.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+
+    if not contact:
+        raise HTTPException(status_code=404, detail=f"No contact with phone {phone_number!r}")
+
+    return {"contact": ContactResponse.model_validate(contact)}
+
+
 @router.get("/{contact_id}")
 async def get_contact(
     contact_id: int,

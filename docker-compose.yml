@@ -1,36 +1,55 @@
 version: "3.9"
 
+# Yojimbo — Government AI Receptionist
+# Production docker-compose for single-server deployment
+#
+# Usage:
+#   cp .env.example .env && vi .env    # fill in real secrets
+#   docker compose up -d               # start all services
+#   docker compose logs -f app         # watch app logs
+#   docker compose exec app alembic upgrade head  # run migrations manually
+
 services:
   app:
-    build: .
-    ports:
-      - "8000:8000"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
     environment:
-      - DATABASE_URL=sqlite:///./yojimbo.db
-      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
-      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
-      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
-      - SECRET_KEY=${SECRET_KEY}
       - ENVIRONMENT=production
     volumes:
-      - ./yojimbo.db:/app/yojimbo.db
+      - yojimbo_db:/app/data          # persistent SQLite data volume
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 15s
+    expose:
+      - "8000"
+    networks:
+      - yojimbo_net
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro        # mount TLS certs (Let's Encrypt / manual)
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - yojimbo_net
+
+volumes:
+  yojimbo_db:
+    driver: local
+
+networks:
+  yojimbo_net:
+    driver: bridge

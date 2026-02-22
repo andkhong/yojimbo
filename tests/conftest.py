@@ -1,5 +1,6 @@
 """Shared test fixtures."""
 
+import os
 from datetime import time
 
 import pytest_asyncio
@@ -11,6 +12,9 @@ from app.models.appointment import TimeSlot
 from app.models.department import Department
 from app.models.user import DashboardUser
 from app.core.security import hash_password
+
+# Force debug mode in tests — disables rate limiting and relaxes some guards
+os.environ.setdefault("DEBUG", "true")
 
 # In-memory SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"

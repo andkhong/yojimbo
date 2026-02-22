@@ -99,9 +99,19 @@ def _client_ip(request: Request) -> str:
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Apply token-bucket rate limits to configured path prefixes."""
+    """Apply token-bucket rate limits to configured path prefixes.
+
+    Rate limiting is automatically disabled when DEBUG=true (development/test mode).
+    """
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        import os
+
+        # Skip rate limiting in debug/test mode to prevent test interference
+        # Check the env var directly to avoid stale cached settings object
+        if os.getenv("DEBUG", "false").lower() in ("1", "true", "yes"):
+            return await call_next(request)
+
         limit_key = _classify(request.url.path)
         if limit_key is None:
             return await call_next(request)
