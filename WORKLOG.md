@@ -1,5 +1,20 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 12:23 PST — Iteration: WebSocket reconnection hardening ✅
+
+### Shipped in this iteration
+- Hardened dashboard WebSocket client reconnection logic (`app/static/js/dashboard.js`):
+  - exponential backoff + jitter reconnect scheduling (caps at 30s)
+  - heartbeat ping loop with stale-connection detection and forced reconnect
+  - reconnect-at-focus behavior when browser tab resumes and socket is closed
+  - reconnect attempt counter reset on successful connect
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **323 passed**
+
+---
+
 ## 2026-02-23 12:19 PST — Iteration: full call-flow integration tests ✅
 
 ### Shipped in this iteration
