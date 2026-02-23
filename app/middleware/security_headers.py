@@ -82,8 +82,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         allowed_origins: list[str],
     ) -> None:
         """Add CORS headers based on debug mode and configured origins."""
-        if is_debug or not allowed_origins or origin in allowed_origins:
-            response.headers["Access-Control-Allow-Origin"] = origin or "*"
+        # Debug mode stays permissive for local/dev workflows.
+        # Production requires explicit allowlist membership.
+        if is_debug:
+            allow_origin = True
+        else:
+            allow_origin = bool(allowed_origins) and origin in allowed_origins
+
+        if allow_origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
             response.headers["Access-Control-Allow-Methods"] = (
                 "GET, POST, PUT, PATCH, DELETE, OPTIONS"

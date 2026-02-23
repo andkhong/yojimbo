@@ -1,5 +1,24 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 15:56 PST — Iteration: production CORS allowlist enforcement + security coverage ✅
+
+### Shipped in this iteration
+- Hardened security middleware CORS behavior in `app/middleware/security_headers.py`:
+  - debug mode remains permissive for local development
+  - production mode now requires explicit `CORS_ALLOWED_ORIGINS` membership
+  - removed fallback behavior that unintentionally allowed all origins when allowlist was unset
+- Expanded security test coverage in `tests/test_new_features.py`:
+  - production allowlist permits trusted origin and blocks untrusted origin
+  - production mode without configured origins omits CORS headers
+  - validated HSTS header remains enabled in production responses
+- Increased suite size from **357** to **359 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **359 passed**
+
+---
+
 ## 2026-02-23 15:33 PST — Iteration: contacts API i18n-ready error payloads ✅
 
 ### Shipped in this iteration

@@ -60,6 +60,45 @@ async def test_security_headers_no_hsts_in_debug(client):
     assert "strict-transport-security" not in resp.headers
 
 
+@pytest.mark.asyncio
+async def test_cors_allowlist_enforced_in_production(client, monkeypatch):
+    """Production mode only allows CORS for explicitly allowlisted origins."""
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.setenv(
+        "CORS_ALLOWED_ORIGINS",
+        "https://dashboard.city.gov, https://ops.city.gov",
+    )
+
+    allowed = await client.options(
+        "/api/departments",
+        headers={"origin": "https://dashboard.city.gov"},
+    )
+    assert allowed.status_code in (200, 204)
+    assert allowed.headers.get("access-control-allow-origin") == "https://dashboard.city.gov"
+
+    blocked = await client.options(
+        "/api/departments",
+        headers={"origin": "https://evil.example.com"},
+    )
+    assert blocked.status_code in (200, 204)
+    assert "access-control-allow-origin" not in blocked.headers
+
+
+@pytest.mark.asyncio
+async def test_production_requires_explicit_cors_origins(client, monkeypatch):
+    """With no allowlist configured in production, CORS headers are omitted."""
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.delenv("CORS_ALLOWED_ORIGINS", raising=False)
+
+    resp = await client.options(
+        "/api/departments",
+        headers={"origin": "https://dashboard.city.gov"},
+    )
+    assert resp.status_code in (200, 204)
+    assert "access-control-allow-origin" not in resp.headers
+    assert "strict-transport-security" in resp.headers
+
+
 # ===========================================================================
 # Item 5: Caller Preferences
 # ===========================================================================
