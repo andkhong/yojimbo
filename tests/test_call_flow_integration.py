@@ -14,6 +14,7 @@ import types
 import pytest
 from sqlalchemy import select
 
+from app.config import settings
 from app.models.call import Call
 
 
@@ -149,3 +150,44 @@ async def test_status_callback_unknown_callsid_is_noop(client):
         data={"CallSid": "CA_does_not_exist", "CallStatus": "completed", "CallDuration": "5"},
     )
     assert resp.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_status_callback_unknown_status_is_stored_raw(client, db, monkeypatch):
+    """Unmapped status values should persist as-is for forward compatibility."""
+    _install_fake_twilio(monkeypatch)
+
+    create_resp = await client.post(
+        "/api/calls/outbound",
+        json={"phone_number": "+15557770000", "department_id": 2, "language": "en"},
+    )
+    assert create_resp.status_code == 201
+    call_id = create_resp.json()["call"]["id"]
+
+    resp = await client.post(
+        "/api/twilio/status",
+        data={
+            "CallSid": "CA_int_test_123",
+            "CallStatus": "queued-custom",
+            "CallDuration": "not-an-int",
+        },
+    )
+    assert resp.status_code == 204
+
+    row = (await db.execute(select(Call).where(Call.id == call_id))).scalar_one()
+    assert row.status == "queued-custom"
+    # Duration parsing only happens for completed calls; invalid value should be ignored.
+    assert row.duration_seconds in (None, 0)
+
+
+@pytest.mark.asyncio
+async def test_inbound_voice_uses_wss_when_base_url_is_https(client, monkeypatch):
+    """Inbound voice TwiML should use secure WebSocket when base URL is HTTPS."""
+    monkeypatch.setattr(settings, "base_url", "https://example.gov")
+
+    resp = await client.post(
+        "/api/twilio/voice",
+        data={"CallSid": "CA_https_123", "From": "+15550111111"},
+    )
+    assert resp.status_code == 200
+    assert 'url="wss://example.gov/ws/conversation-relay"' in resp.text

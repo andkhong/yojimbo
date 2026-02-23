@@ -1,5 +1,20 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 14:47 PST — Iteration: call-flow status/transport edge integration coverage ✅
+
+### Shipped in this iteration
+- Expanded full call-flow integration coverage (`tests/test_call_flow_integration.py`) with additional edge-path contracts:
+  - unknown/unmapped Twilio `CallStatus` values are persisted raw for forward compatibility
+  - invalid `CallDuration` is ignored for non-`completed` statuses (no parse crash path)
+  - inbound voice TwiML now has explicit test coverage for HTTPS base URL -> `wss://` ConversationRelay URL generation
+- Increased suite size from **351** to **353 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **353 passed**
+
+---
+
 ## 2026-02-23 14:33 PST — Iteration: bulk-import time-window validation hardening ✅
 
 ### Shipped in this iteration
