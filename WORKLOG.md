@@ -1,5 +1,21 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 12:19 PST — Iteration: full call-flow integration tests ✅
+
+### Shipped in this iteration
+- Added **end-to-end call flow integration tests** (`tests/test_call_flow_integration.py`):
+  - outbound call initiation (`POST /api/calls/outbound`) with Twilio client mocked
+  - Twilio status progression (`in-progress` -> `completed`) and duration persistence checks
+  - inbound voice TwiML validation (`POST /api/twilio/voice`) for ConversationRelay wiring
+  - unknown CallSid callback noop validation (`POST /api/twilio/status`)
+- Increased total test count from 320 to **323**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **323 passed**
+
+---
+
 ## 2026-02-23 12:10 PST — Iteration: hardening + coverage to 320 ✅
 
 ### Shipped in this iteration
