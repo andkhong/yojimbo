@@ -1,5 +1,22 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 14:22 PST — Iteration: Twilio call-flow edge hardening + integration coverage ✅
+
+### Shipped in this iteration
+- Hardened Twilio status callback duration parsing (`app/api/twilio_webhooks.py`):
+  - completed-call `CallDuration` parsing now safely handles invalid values
+  - invalid duration no longer causes a server error; defaults to `0` with warning log
+- Expanded full call-flow integration coverage (`tests/test_call_flow_integration.py`):
+  - added outbound voice webhook TwiML contract test (`/api/twilio/voice/outbound`)
+  - added status-callback invalid-duration error-path test ensuring graceful `204` + persisted safe default
+- Increased suite size from **347** to **349 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **349 passed**
+
+---
+
 ## 2026-02-23 14:04 PST — Iteration: bulk-import i18n-ready row errors + contract coverage ✅
 
 ### Shipped in this iteration

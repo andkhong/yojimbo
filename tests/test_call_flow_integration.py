@@ -100,6 +100,48 @@ async def test_inbound_voice_twiml_includes_conversation_relay(client):
 
 
 @pytest.mark.asyncio
+async def test_outbound_voice_twiml_includes_conversation_relay(client):
+    """Outbound voice webhook returns TwiML wired to ConversationRelay."""
+    resp = await client.post(
+        "/api/twilio/voice/outbound",
+        data={
+            "CallSid": "CA_outbound_123",
+        },
+    )
+    assert resp.status_code == 200
+    assert "application/xml" in resp.headers.get("content-type", "")
+
+    body = resp.text
+    assert "<ConversationRelay" in body
+    assert '<Parameter name="callSid" value="CA_outbound_123"' in body
+    assert "Hello, this is Yojimbo calling from" in body
+
+
+@pytest.mark.asyncio
+async def test_status_callback_invalid_completed_duration_defaults_to_zero(client, db, monkeypatch):
+    """Invalid completed duration should not 500 and should store a safe default."""
+    _install_fake_twilio(monkeypatch)
+
+    create_resp = await client.post(
+        "/api/calls/outbound",
+        json={"phone_number": "+15551239999", "department_id": 2, "language": "en"},
+    )
+    assert create_resp.status_code == 201
+
+    call_id = create_resp.json()["call"]["id"]
+
+    completed = await client.post(
+        "/api/twilio/status",
+        data={"CallSid": "CA_int_test_123", "CallStatus": "completed", "CallDuration": "NaN"},
+    )
+    assert completed.status_code == 204
+
+    row = (await db.execute(select(Call).where(Call.id == call_id))).scalar_one()
+    assert row.status == "completed"
+    assert row.duration_seconds == 0
+
+
+@pytest.mark.asyncio
 async def test_status_callback_unknown_callsid_is_noop(client):
     """Unknown Twilio call SID should return 204 and not error."""
     resp = await client.post(
