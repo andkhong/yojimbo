@@ -22,6 +22,11 @@ from app.services.appointment_engine import BookingConflictError, OutsideOperati
 router = APIRouter(prefix="/api/appointments", tags=["appointments"])
 
 
+def _i18n_error(message_key: str, message: str, **params):
+    """Build i18n-ready API error payload with English fallback message."""
+    return {"message_key": message_key, "message": message, "params": params}
+
+
 @router.get("")
 async def list_appointments(
     db: AsyncSession = Depends(get_db),
@@ -76,9 +81,21 @@ async def create_appointment(
             enforce_operating_hours=True,
         )
     except OutsideOperatingHoursError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(
+            status_code=422,
+            detail=_i18n_error(
+                "appointments.outside_operating_hours",
+                str(exc),
+            ),
+        )
     except BookingConflictError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+        raise HTTPException(
+            status_code=409,
+            detail=_i18n_error(
+                "appointments.booking_conflict",
+                str(exc),
+            ),
+        )
 
     await notification.notify_appointment_created(
         {
@@ -115,7 +132,14 @@ async def get_appointment(
     result = await db.execute(select(Appointment).where(Appointment.id == appointment_id))
     appt = result.scalar_one_or_none()
     if not appt:
-        raise HTTPException(status_code=404, detail="Appointment not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_i18n_error(
+                "appointments.not_found",
+                "Appointment not found",
+                appointment_id=appointment_id,
+            ),
+        )
     return {"appointment": AppointmentResponse.model_validate(appt)}
 
 
@@ -128,7 +152,14 @@ async def update_appointment(
     result = await db.execute(select(Appointment).where(Appointment.id == appointment_id))
     appt = result.scalar_one_or_none()
     if not appt:
-        raise HTTPException(status_code=404, detail="Appointment not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_i18n_error(
+                "appointments.not_found",
+                "Appointment not found",
+                appointment_id=appointment_id,
+            ),
+        )
 
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(appt, field, value)
@@ -150,7 +181,14 @@ async def cancel_appointment_endpoint(
 ):
     appt = await appointment_engine.cancel_appointment(db, appointment_id)
     if not appt:
-        raise HTTPException(status_code=404, detail="Appointment not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_i18n_error(
+                "appointments.not_found",
+                "Appointment not found",
+                appointment_id=appointment_id,
+            ),
+        )
 
     await notification.notify_appointment_updated(
         {

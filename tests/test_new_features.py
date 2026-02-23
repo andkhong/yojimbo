@@ -417,7 +417,60 @@ async def test_booking_enforces_operating_hours_via_api(client, seeded_db):
         },
     )
     assert resp.status_code == 422
-    assert "closes" in resp.json()["detail"].lower() or "hours" in resp.json()["detail"].lower()
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "appointments.outside_operating_hours"
+    assert "closes" in detail["message"].lower() or "hours" in detail["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_appointment_not_found_errors_are_i18n_ready(client):
+    """Appointment get/patch/delete 404 errors return i18n-ready payloads."""
+    missing_id = 999999
+
+    get_resp = await client.get(f"/api/appointments/{missing_id}")
+    patch_resp = await client.patch(f"/api/appointments/{missing_id}", json={"title": "x"})
+    delete_resp = await client.delete(f"/api/appointments/{missing_id}")
+
+    assert get_resp.status_code == 404
+    assert patch_resp.status_code == 404
+    assert delete_resp.status_code == 404
+
+    for resp in (get_resp, patch_resp, delete_resp):
+        detail = resp.json()["detail"]
+        assert detail["message_key"] == "appointments.not_found"
+        assert detail["params"]["appointment_id"] == missing_id
+
+
+@pytest.mark.asyncio
+async def test_appointment_conflict_error_is_i18n_ready(client, seeded_db):
+    """Booking conflict returns structured i18n-ready error payload."""
+    contact_resp = await client.post(
+        "/api/contacts", json={"phone_number": "+15591110002"}
+    )
+    contact_id = contact_resp.json()["contact"]["id"]
+
+    dept_resp = await client.post(
+        "/api/departments",
+        json={"name": "Conflict Dept", "code": "CFD"},
+    )
+    dept_id = dept_resp.json()["department"]["id"]
+
+    payload = {
+        "contact_id": contact_id,
+        "department_id": dept_id,
+        "title": "First",
+        "scheduled_start": "2026-03-03T10:00:00",
+        "scheduled_end": "2026-03-03T10:30:00",
+    }
+
+    first = await client.post("/api/appointments", json=payload)
+    assert first.status_code == 201
+
+    second = await client.post("/api/appointments", json=payload)
+    assert second.status_code == 409
+    detail = second.json()["detail"]
+    assert detail["message_key"] == "appointments.booking_conflict"
+    assert "book" in detail["message"].lower() or "conflict" in detail["message"].lower()
 
 
 # ===========================================================================

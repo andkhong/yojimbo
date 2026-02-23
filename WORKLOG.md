@@ -1,5 +1,25 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 13:24 PST — Iteration: i18n-ready appointment errors + conflict/not-found coverage ✅
+
+### Shipped in this iteration
+- Improved appointment API error responses (`app/api/appointments.py`) to be **i18n-ready** with structured payloads:
+  - `appointments.outside_operating_hours` (422)
+  - `appointments.booking_conflict` (409)
+  - `appointments.not_found` (404 on GET/PATCH/DELETE)
+  - standardized payload shape: `{message_key, message, params}`
+- Expanded feature tests (`tests/test_new_features.py`):
+  - out-of-hours booking now validates structured `message_key`
+  - appointment not-found payload contract across GET/PATCH/DELETE
+  - booking-conflict payload contract validation
+- Increased suite size from 329 to **331 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **331 passed**
+
+---
+
 ## 2026-02-23 13:06 PST — Iteration: additional monitor reconnect edge-case coverage ✅
 
 ### Shipped in this iteration
