@@ -1,5 +1,24 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 12:34 PST — Iteration: i18n-ready preference errors + extra coverage ✅
+
+### Shipped in this iteration
+- Improved caller preference not-found API errors (`app/api/caller_preferences.py`) to be **i18n-ready** with structured payload:
+  - `message_key` (stable translation key)
+  - `message` (current English fallback)
+  - `params` (template params, e.g. `phone_number`)
+- Added focused regression/contract tests (`tests/test_new_features.py`):
+  - not-found payload shape assertions for `GET/DELETE /api/preferences/{phone}`
+  - increment-call behavior preserves existing caller preference fields
+  - cross-endpoint consistency check for shared error contract
+- Increased suite size from 323 to **325 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **325 passed**
+
+---
+
 ## 2026-02-23 12:23 PST — Iteration: WebSocket reconnection hardening ✅
 
 ### Shipped in this iteration

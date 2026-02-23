@@ -11,6 +11,15 @@ from app.models.caller_preference import CallerPreference
 router = APIRouter(prefix="/api/preferences", tags=["caller-preferences"])
 
 
+def _localized_error(message_key: str, fallback: str, **params):
+    """Build i18n-ready error payloads with a stable message key + params."""
+    return {
+        "message_key": message_key,
+        "message": fallback,
+        "params": params,
+    }
+
+
 class CallerPreferenceResponse(BaseModel):
     id: int
     phone_number: str
@@ -49,7 +58,14 @@ async def get_preferences(phone_number: str, db: AsyncSession = Depends(get_db))
         select(CallerPreference).where(CallerPreference.phone_number == phone_number)
     )).scalar_one_or_none()
     if not pref:
-        raise HTTPException(status_code=404, detail=f"No preferences for {phone_number!r}")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "preferences.not_found",
+                f"No preferences found for {phone_number}",
+                phone_number=phone_number,
+            ),
+        )
     return {"preference": CallerPreferenceResponse.model_validate(pref)}
 
 
@@ -83,7 +99,14 @@ async def delete_preferences(phone_number: str, db: AsyncSession = Depends(get_d
         select(CallerPreference).where(CallerPreference.phone_number == phone_number)
     )).scalar_one_or_none()
     if not pref:
-        raise HTTPException(status_code=404, detail=f"No preferences for {phone_number!r}")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "preferences.not_found",
+                f"No preferences found for {phone_number}",
+                phone_number=phone_number,
+            ),
+        )
     await db.delete(pref)
     return None
 

@@ -67,9 +67,13 @@ async def test_security_headers_no_hsts_in_debug(client):
 
 @pytest.mark.asyncio
 async def test_get_preferences_not_found(client):
-    """Returns 404 when no preferences set for a phone number."""
+    """Returns i18n-ready 404 payload when no preferences set for a phone number."""
     resp = await client.get("/api/preferences/%2B15580001111")
     assert resp.status_code == 404
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "preferences.not_found"
+    assert detail["params"]["phone_number"] == "+15580001111"
+    assert "No preferences found" in detail["message"]
 
 
 @pytest.mark.asyncio
@@ -139,9 +143,12 @@ async def test_delete_preferences(client):
 
 @pytest.mark.asyncio
 async def test_delete_nonexistent_preferences(client):
-    """DELETE for unknown phone returns 404."""
+    """DELETE for unknown phone returns i18n-ready 404 payload."""
     resp = await client.delete("/api/preferences/%2B15589999999")
     assert resp.status_code == 404
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "preferences.not_found"
+    assert detail["params"]["phone_number"] == "+15589999999"
 
 
 @pytest.mark.asyncio
@@ -162,6 +169,35 @@ async def test_increment_call_creates_if_not_exists(client):
     assert resp.status_code == 200
     assert resp.json()["call_count"] == 1
     assert "last_call_at" in resp.json()
+
+
+@pytest.mark.asyncio
+async def test_increment_call_preserves_existing_preferences(client):
+    """increment-call should not overwrite previously saved caller settings."""
+    await client.put(
+        "/api/preferences/%2B15580009999",
+        json={"preferred_language": "es", "name": "Ana"},
+    )
+
+    resp = await client.post("/api/preferences/%2B15580009999/increment-call")
+    assert resp.status_code == 200
+    assert resp.json()["call_count"] == 1
+
+    fetch = await client.get("/api/preferences/%2B15580009999")
+    pref = fetch.json()["preference"]
+    assert pref["preferred_language"] == "es"
+    assert pref["name"] == "Ana"
+
+
+@pytest.mark.asyncio
+async def test_preferences_not_found_payload_shape_consistent_between_get_and_delete(client):
+    """GET/DELETE not-found errors should share the same i18n message key contract."""
+    get_resp = await client.get("/api/preferences/%2B15580012345")
+    del_resp = await client.delete("/api/preferences/%2B15580012345")
+
+    assert get_resp.status_code == 404
+    assert del_resp.status_code == 404
+    assert get_resp.json()["detail"]["message_key"] == del_resp.json()["detail"]["message_key"]
 
 
 @pytest.mark.asyncio
