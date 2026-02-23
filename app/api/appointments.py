@@ -3,6 +3,7 @@
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,7 @@ from app.schemas.appointment import (
     AvailabilitySlot,
 )
 from app.services import appointment_engine, notification
-from app.services.appointment_engine import BookingConflictError
+from app.services.appointment_engine import BookingConflictError, OutsideOperatingHoursError
 
 router = APIRouter(prefix="/api/appointments", tags=["appointments"])
 
@@ -72,7 +73,10 @@ async def create_appointment(
             title=data.title,
             description=data.description,
             language=data.language,
+            enforce_operating_hours=True,
         )
+    except OutsideOperatingHoursError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except BookingConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
@@ -156,3 +160,127 @@ async def cancel_appointment_endpoint(
     )
 
     return {"appointment": AppointmentResponse.model_validate(appt)}
+
+
+# ---------------------------------------------------------------------------
+# Item 6: Bulk appointment import
+# ---------------------------------------------------------------------------
+
+
+class BulkAppointmentRow(BaseModel):
+    contact_phone: str
+    department_code: str
+    title: str
+    scheduled_start: str  # ISO datetime string
+    scheduled_end: str | None = None
+    description: str | None = None
+    language: str = "en"
+
+
+class BulkImportRequest(BaseModel):
+    appointments: list[BulkAppointmentRow]
+    skip_duplicates: bool = True
+    dry_run: bool = False
+
+
+@router.post("/import", status_code=201, summary="Bulk-import appointments from CSV-style JSON")
+async def bulk_import_appointments(
+    data: BulkImportRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Import multiple appointments in a single request.
+
+    Each row references contact by phone number and department by code.
+    If skip_duplicates=True, rows where a confirmed appointment for the same
+    contact+department+time already exists are skipped rather than failing.
+    Set dry_run=True to validate without committing.
+    """
+    from datetime import timedelta
+
+    from app.models.contact import Contact
+    from app.models.department import Department
+
+    # Preload contacts and departments for efficiency
+    phones = list({r.contact_phone for r in data.appointments})
+    dept_codes = list({r.department_code.upper() for r in data.appointments})
+
+    contact_map = {
+        c.phone_number: c
+        for c in (await db.execute(
+            select(Contact).where(Contact.phone_number.in_(phones))
+        )).scalars().all()
+    }
+    dept_map = {
+        d.code: d
+        for d in (await db.execute(
+            select(Department).where(Department.code.in_(dept_codes))
+        )).scalars().all()
+    }
+
+    created = []
+    skipped = []
+    errors = []
+
+    for i, row in enumerate(data.appointments):
+        contact = contact_map.get(row.contact_phone)
+        dept = dept_map.get(row.department_code.upper())
+
+        if not contact:
+            errors.append({"row": i, "reason": f"Contact not found: {row.contact_phone}"})
+            continue
+        if not dept:
+            errors.append({"row": i, "reason": f"Department not found: {row.department_code}"})
+            continue
+
+        try:
+            start = datetime.fromisoformat(row.scheduled_start)
+        except ValueError:
+            errors.append({"row": i, "reason": f"Invalid scheduled_start: {row.scheduled_start}"})
+            continue
+
+        end = (
+            datetime.fromisoformat(row.scheduled_end)
+            if row.scheduled_end
+            else start + timedelta(hours=1)
+        )
+
+        if data.skip_duplicates:
+            existing = (await db.execute(
+                select(Appointment).where(
+                    Appointment.contact_id == contact.id,
+                    Appointment.department_id == dept.id,
+                    Appointment.scheduled_start == start,
+                    Appointment.status == "confirmed",
+                )
+            )).scalar_one_or_none()
+            if existing:
+                skipped.append({"row": i, "existing_id": existing.id})
+                continue
+
+        if not data.dry_run:
+            appt = Appointment(
+                contact_id=contact.id,
+                department_id=dept.id,
+                title=row.title,
+                description=row.description,
+                scheduled_start=start,
+                scheduled_end=end,
+                language=row.language,
+                status="confirmed",
+            )
+            db.add(appt)
+            await db.flush()
+            created.append({"row": i, "appointment_id": appt.id})
+        else:
+            created.append({"row": i, "appointment_id": None, "dry_run": True})
+
+    return {
+        "dry_run": data.dry_run,
+        "total_rows": len(data.appointments),
+        "created": len(created),
+        "skipped": len(skipped),
+        "errors": len(errors),
+        "results": created,
+        "skipped_rows": skipped,
+        "error_rows": errors,
+    }

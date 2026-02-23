@@ -1,5 +1,21 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 12:10 PST — Iteration: hardening + coverage to 320 ✅
+
+### Shipped in this iteration
+- Added/finished **caller preferences API** (`/api/preferences/{phone}` CRUD + increment-call)
+- Added **public status endpoints** (`/api/status`, `/api/status/ping`) with no auth
+- Added **security middleware** for CSP/CORS-aligned headers
+- Added **DB performance indexes** migration (`bf5cfbb6a13b_add_performance_indexes.py`)
+- Added/expanded **operating-hours enforcement** support (structured format) with legacy-format compatibility
+- Expanded test suite with edge/error/bulk-import coverage
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **320 passed**
+
+---
+
 ## 2026-02-21 22:53 PST — ALL ROADMAP ITEMS COMPLETE ✅
 
 ### Current state

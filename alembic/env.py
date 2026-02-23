@@ -12,6 +12,7 @@ import app.models.agent_config  # noqa: F401
 import app.models.appointment  # noqa: F401
 import app.models.audit_log  # noqa: F401
 import app.models.call  # noqa: F401
+import app.models.caller_preference  # noqa: F401
 import app.models.contact  # noqa: F401
 import app.models.department  # noqa: F401
 import app.models.knowledge  # noqa: F401

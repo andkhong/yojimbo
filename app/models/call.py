@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -8,6 +8,14 @@ from app.database import Base
 
 class Call(Base):
     __tablename__ = "calls"
+    __table_args__ = (
+        # High-traffic analytics & live-monitor queries
+        Index("ix_calls_status", "status"),
+        Index("ix_calls_dept_started", "department_id", "started_at"),
+        Index("ix_calls_resolution", "resolution_status"),
+        Index("ix_calls_language", "detected_language"),
+        Index("ix_calls_contact", "contact_id"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     twilio_call_sid: Mapped[str] = mapped_column(String(64), unique=True, index=True)
@@ -18,10 +26,8 @@ class Call(Base):
     department_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("departments.id"))
     summary: Mapped[str | None] = mapped_column(Text)
     sentiment: Mapped[str | None] = mapped_column(String(20))
-    resolution_status: Mapped[str | None] = mapped_column(
-        String(20)
-    )  # resolved, escalated, abandoned
-    partial_transcript: Mapped[str | None] = mapped_column(Text)  # live partial transcript
+    resolution_status: Mapped[str | None] = mapped_column(String(20))
+    partial_transcript: Mapped[str | None] = mapped_column(Text)
     duration_seconds: Mapped[int | None] = mapped_column(Integer)
     recording_url: Mapped[str | None] = mapped_column(String(512))
     started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -50,6 +56,7 @@ class CallEvent(Base):
 
 class ConversationTurn(Base):
     __tablename__ = "conversation_turns"
+    __table_args__ = (Index("ix_conv_turns_call_seq", "call_id", "sequence"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     call_id: Mapped[int] = mapped_column(Integer, ForeignKey("calls.id"), index=True)

@@ -7,6 +7,7 @@ from app.api import (
     analytics,
     appointments,
     audit_logs,
+    caller_preferences,
     calls,
     contacts,
     dashboard,
@@ -16,6 +17,7 @@ from app.api import (
     knowledge,
     messages,
     reminders,
+    status,
     twilio_webhooks,
     users,
 )
@@ -46,6 +48,10 @@ api_router.include_router(reminders.router)
 
 # Government Dashboard & Compliance
 api_router.include_router(gov_dashboard.router)
+
+# Caller Preferences & Public Status
+api_router.include_router(caller_preferences.router)
+api_router.include_router(status.router)
 
 # Infrastructure
 api_router.include_router(health.router)
