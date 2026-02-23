@@ -383,9 +383,13 @@ async def test_contact_lookup_by_phone(client, db):
 
 @pytest.mark.asyncio
 async def test_contact_lookup_not_found(client):
-    """Lookup with unknown phone returns 404."""
+    """Lookup with unknown phone returns i18n-ready 404 payload."""
+    phone = "+15579999999"
     resp = await client.get("/api/contacts/lookup/%2B15579999999")
     assert resp.status_code == 404
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "contacts.lookup.not_found"
+    assert detail["params"]["phone_number"] == phone
 
 
 @pytest.mark.asyncio

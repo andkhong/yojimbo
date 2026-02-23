@@ -1,5 +1,26 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 15:33 PST — Iteration: contacts API i18n-ready error payloads ✅
+
+### Shipped in this iteration
+- Improved Contacts API error responses (`app/api/contacts.py`) to be i18n-ready with structured payloads via `message_key`, `message`, and `params`.
+- Added stable translation keys for common contact failure paths:
+  - `contacts.lookup.not_found`
+  - `contacts.not_found`
+  - `contacts.merge.primary_not_found`
+  - `contacts.merge.duplicate_not_found`
+  - `contacts.merge.same_contact`
+- Expanded coverage to enforce response contracts:
+  - lookup-by-phone not-found now asserts `message_key` + `phone_number` parameter
+  - merge-self invalid operation now asserts `message_key` + `contact_id` parameter
+- Suite remains stable at **357 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **357 passed**
+
+---
+
 ## 2026-02-23 15:24 PST — Iteration: reconnect/preference edge integration coverage ✅
 
 ### Shipped in this iteration
