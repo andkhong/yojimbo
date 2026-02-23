@@ -117,3 +117,71 @@ async def test_conversation_relay_flow_completes_call_and_tracks_preferences(db,
         )
     ).scalar_one()
     assert pref.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_handle_setup_without_caller_phone_skips_preference_row(db, monkeypatch):
+    """Anonymous/missing phone setup should still create call but not preference row."""
+
+    async def _noop_notify(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(relay, "async_session_factory", TestSessionFactory)
+    monkeypatch.setattr(relay.notification, "notify_call_started", _noop_notify)
+
+    sid, call_id, _ = await relay._handle_setup(
+        {
+            "type": "setup",
+            "callSid": "CA_no_phone_001",
+            "customParameters": {"language": "en"},
+        }
+    )
+
+    assert sid == "CA_no_phone_001"
+    assert call_id is not None
+
+    call = (await db.execute(select(Call).where(Call.twilio_call_sid == "CA_no_phone_001"))).scalar_one()
+    assert call.status == "in_progress"
+
+    prefs = (await db.execute(select(CallerPreference))).scalars().all()
+    assert prefs == []
+
+
+@pytest.mark.asyncio
+async def test_handle_setup_reconnect_updates_detected_language_without_increment(db, monkeypatch):
+    """Reconnect may carry new language hint; call should update language without new count."""
+
+    async def _noop_notify(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(relay, "async_session_factory", TestSessionFactory)
+    monkeypatch.setattr(relay.notification, "notify_call_started", _noop_notify)
+
+    await relay._handle_setup(
+        {
+            "type": "setup",
+            "callSid": "CA_reconnect_lang_001",
+            "from": "+15550000003",
+            "customParameters": {"language": "en"},
+        }
+    )
+    await relay._handle_setup(
+        {
+            "type": "setup",
+            "callSid": "CA_reconnect_lang_001",
+            "from": "+15550000003",
+            "customParameters": {"language": "es"},
+        }
+    )
+
+    call = (
+        await db.execute(select(Call).where(Call.twilio_call_sid == "CA_reconnect_lang_001"))
+    ).scalar_one()
+    assert call.detected_language == "es"
+
+    pref = (
+        await db.execute(
+            select(CallerPreference).where(CallerPreference.phone_number == "+15550000003")
+        )
+    ).scalar_one()
+    assert pref.call_count == 1

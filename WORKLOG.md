@@ -1,5 +1,19 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 15:24 PST — Iteration: reconnect/preference edge integration coverage ✅
+
+### Shipped in this iteration
+- Expanded ConversationRelay integration coverage (`tests/test_conversation_relay_integration.py`) with additional setup/reconnect edge-path tests:
+  - missing/anonymous caller phone on setup still creates call state without creating `caller_preferences` rows
+  - reconnect for same `CallSid` with updated language hint updates `calls.detected_language` while preserving idempotent caller preference counting
+- Increased suite size from **355** to **357 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **357 passed**
+
+---
+
 ## 2026-02-23 14:47 PST — Iteration: call-flow status/transport edge integration coverage ✅
 
 ### Shipped in this iteration
