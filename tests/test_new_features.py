@@ -385,6 +385,34 @@ async def test_operating_hours_legacy_weekend_closed():
 
 
 @pytest.mark.asyncio
+async def test_operating_hours_overnight_window_allows_cross_midnight():
+    """Overnight windows (e.g. 22:00-02:00) allow bookings that end next day."""
+    from app.services.appointment_engine import check_operating_hours
+
+    hours_json = json.dumps({
+        "monday": {"open": "22:00", "close": "02:00"},
+    })
+    start = datetime(2026, 2, 23, 23, 30)  # Monday 11:30pm
+    end = datetime(2026, 2, 24, 1, 30)     # Tuesday 1:30am
+    check_operating_hours(hours_json, start, end)
+
+
+@pytest.mark.asyncio
+async def test_operating_hours_overnight_window_rejects_after_close():
+    """Overnight windows still reject bookings past close time next day."""
+    from app.services.appointment_engine import OutsideOperatingHoursError, check_operating_hours
+
+    hours_json = json.dumps({
+        "monday": {"open": "22:00", "close": "02:00"},
+    })
+    start = datetime(2026, 2, 23, 23, 30)  # Monday 11:30pm
+    end = datetime(2026, 2, 24, 2, 30)     # Tuesday 2:30am (too late)
+    with pytest.raises(OutsideOperatingHoursError) as exc_info:
+        check_operating_hours(hours_json, start, end)
+    assert "closes" in str(exc_info.value).lower()
+
+
+@pytest.mark.asyncio
 async def test_booking_enforces_operating_hours_via_api(client, seeded_db):
     """POST /api/appointments returns 422 for out-of-hours booking when dept has hours."""
     contact_resp = await client.post(

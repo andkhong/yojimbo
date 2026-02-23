@@ -132,17 +132,21 @@ def check_operating_hours(
         )
 
     open_time, close_time = day_window
-    start_time = scheduled_start.time()
-    end_time = scheduled_end.time()
+    open_dt = datetime.combine(scheduled_start.date(), open_time)
+    close_dt = datetime.combine(scheduled_start.date(), close_time)
 
-    if start_time < open_time:
+    # Support overnight windows, e.g. 22:00 -> 02:00 next day
+    if close_time <= open_time:
+        close_dt += timedelta(days=1)
+
+    if scheduled_start < open_dt:
         raise OutsideOperatingHoursError(
-            f"Appointment starts at {start_time.strftime('%H:%M')} but the department "
+            f"Appointment starts at {scheduled_start.strftime('%H:%M')} but the department "
             f"opens at {open_time.strftime('%H:%M')} on {day_key.capitalize()}."
         )
-    if end_time > close_time:
+    if scheduled_end > close_dt:
         raise OutsideOperatingHoursError(
-            f"Appointment ends at {end_time.strftime('%H:%M')} but the department "
+            f"Appointment ends at {scheduled_end.strftime('%H:%M')} but the department "
             f"closes at {close_time.strftime('%H:%M')} on {day_key.capitalize()}."
         )
 

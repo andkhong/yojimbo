@@ -1,5 +1,21 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 13:49 PST — Iteration: operating-hours overnight enforcement edge cases ✅
+
+### Shipped in this iteration
+- Hardened department operating-hours enforcement (`app/services/appointment_engine.py`) for **overnight windows** where `close <= open` (e.g. `22:00 -> 02:00`).
+- Validation now uses datetime windows (not just wall-clock times), correctly handling bookings that cross midnight.
+- Added new edge-case tests in `tests/test_new_features.py`:
+  - allows valid cross-midnight booking inside overnight window
+  - rejects booking ending after overnight close time
+- Increased suite size from 345 to **347 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **347 passed**
+
+---
+
 ## 2026-02-23 13:32 PST — Iteration: pagination validation/error-path coverage expansion ✅
 
 ### Shipped in this iteration
