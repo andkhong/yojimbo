@@ -1,5 +1,23 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 14:33 PST — Iteration: bulk-import time-window validation hardening ✅
+
+### Shipped in this iteration
+- Hardened bulk appointment import validation (`app/api/appointments.py`) for additional row-level error paths:
+  - invalid `scheduled_end` datetime now returns structured row error (instead of bubbling a server error)
+  - invalid time windows where `scheduled_end <= scheduled_start` are rejected
+- Kept error responses i18n-ready with stable keys and params:
+  - `appointments.import.invalid_datetime` (field-aware for `scheduled_end`)
+  - `appointments.import.invalid_time_window`
+- Expanded coverage in `tests/test_new_features.py` with two new tests for these edge cases.
+- Increased suite size from **349** to **351 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **351 passed**
+
+---
+
 ## 2026-02-23 14:22 PST — Iteration: Twilio call-flow edge hardening + integration coverage ✅
 
 ### Shipped in this iteration

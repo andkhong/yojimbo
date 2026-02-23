@@ -795,3 +795,65 @@ async def test_bulk_import_no_skip_duplicates_allows_second_row(client, db):
     resp = await client.post("/api/appointments/import", json=payload)
     assert resp.status_code == 201
     assert resp.json()["created"] == 2
+
+
+@pytest.mark.asyncio
+async def test_bulk_import_invalid_scheduled_end_row(client, db):
+    """Invalid scheduled_end values are reported as row errors (not 500s)."""
+    contact = Contact(phone_number="+15592220009")
+    dept = Department(name="Bad End Dept", code="BND")
+    db.add(contact)
+    db.add(dept)
+    await db.flush()
+
+    resp = await client.post(
+        "/api/appointments/import",
+        json={
+            "appointments": [{
+                "contact_phone": "+15592220009",
+                "department_code": "BND",
+                "title": "Bad End",
+                "scheduled_start": "2026-03-12T09:00:00",
+                "scheduled_end": "definitely-not-a-date",
+            }],
+        },
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["created"] == 0
+    assert data["errors"] == 1
+    err = data["error_rows"][0]
+    assert err["message_key"] == "appointments.import.invalid_datetime"
+    assert err["params"]["field"] == "scheduled_end"
+
+
+@pytest.mark.asyncio
+async def test_bulk_import_end_before_start_row(client, db):
+    """Rows with scheduled_end <= scheduled_start are rejected with i18n-ready payloads."""
+    contact = Contact(phone_number="+15592220010")
+    dept = Department(name="Window Dept", code="WND")
+    db.add(contact)
+    db.add(dept)
+    await db.flush()
+
+    resp = await client.post(
+        "/api/appointments/import",
+        json={
+            "appointments": [{
+                "contact_phone": "+15592220010",
+                "department_code": "WND",
+                "title": "Backwards Window",
+                "scheduled_start": "2026-03-12T11:00:00",
+                "scheduled_end": "2026-03-12T10:59:00",
+            }],
+        },
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["created"] == 0
+    assert data["errors"] == 1
+    err = data["error_rows"][0]
+    assert err["message_key"] == "appointments.import.invalid_time_window"
+    assert err["params"]["field"] == "scheduled_end"

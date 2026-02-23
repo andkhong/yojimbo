@@ -308,11 +308,35 @@ async def bulk_import_appointments(
             )
             continue
 
-        end = (
-            datetime.fromisoformat(row.scheduled_end)
-            if row.scheduled_end
-            else start + timedelta(hours=1)
-        )
+        if row.scheduled_end:
+            try:
+                end = datetime.fromisoformat(row.scheduled_end)
+            except ValueError:
+                errors.append(
+                    _import_row_error(
+                        i,
+                        "appointments.import.invalid_datetime",
+                        f"Invalid scheduled_end: {row.scheduled_end}",
+                        field="scheduled_end",
+                        value=row.scheduled_end,
+                    )
+                )
+                continue
+        else:
+            end = start + timedelta(hours=1)
+
+        if end <= start:
+            errors.append(
+                _import_row_error(
+                    i,
+                    "appointments.import.invalid_time_window",
+                    "scheduled_end must be after scheduled_start",
+                    field="scheduled_end",
+                    scheduled_start=row.scheduled_start,
+                    scheduled_end=row.scheduled_end,
+                )
+            )
+            continue
 
         if data.skip_duplicates:
             existing = (await db.execute(
