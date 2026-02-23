@@ -1,5 +1,24 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 12:52 PST — Iteration: monitor WS replay on reconnect ✅
+
+### Shipped in this iteration
+- Added **WebSocket reconnection replay support** for `/ws/monitor` (`app/ws/monitor.py`):
+  - process-local replay buffer of recent monitor events (max 500)
+  - monotonic `event_id` attached to each broadcast call event
+  - reconnect resume via `?last_event_id=<n>` query parameter
+  - best-effort replay of missed events immediately after connect
+- Added monitor replay tests (`tests/test_recordings_and_monitor.py`):
+  - monotonic `event_id` generation validation
+  - `_events_since(...)` filtering behavior validation
+- Increased suite size from 325 to **327 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **327 passed**
+
+---
+
 ## 2026-02-23 12:34 PST — Iteration: i18n-ready preference errors + extra coverage ✅
 
 ### Shipped in this iteration

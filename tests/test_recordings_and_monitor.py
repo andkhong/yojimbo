@@ -8,6 +8,7 @@ Covers:
 - Monitor broadcast_call_event helper
 """
 
+import json
 from datetime import datetime
 
 import pytest
@@ -152,6 +153,39 @@ async def test_monitor_broadcast_call_event():
         "transcript_turn",
         {"call_id": 1, "caller_text": "Hello", "agent_response": "Hi!", "turn": 1},
     )
+
+
+@pytest.mark.asyncio
+async def test_monitor_replay_buffer_tracks_incrementing_event_ids():
+    """Monitor replay buffer stores monotonic event ids for reconnect support."""
+    from app.ws import monitor as m
+
+    baseline = m._event_seq
+
+    first = m._record_event({"event": "call_started", "data": {"call_id": 101}})
+    second = m._record_event({"event": "call_updated", "data": {"call_id": 101}})
+
+    first_payload = json.loads(first)
+    second_payload = json.loads(second)
+
+    assert first_payload["event_id"] == baseline + 1
+    assert second_payload["event_id"] == baseline + 2
+
+
+@pytest.mark.asyncio
+async def test_monitor_events_since_returns_only_newer_events():
+    """_events_since filters replay events by event id."""
+    from app.ws import monitor as m
+
+    msg = m._record_event({"event": "call_ended", "data": {"call_id": 202}})
+    payload = json.loads(msg)
+    event_id = payload["event_id"]
+
+    newer = m._events_since(event_id - 1)
+    assert any(evt["event_id"] == event_id for evt in newer)
+
+    none_newer = m._events_since(event_id)
+    assert all(evt["event_id"] > event_id for evt in none_newer)
 
 
 @pytest.mark.asyncio
