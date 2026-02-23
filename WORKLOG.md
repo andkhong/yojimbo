@@ -332,3 +332,25 @@ Low priority polish (all major features done):
 | 2026-02-21 22:47 | AI integration | 146 | Knowledge+config injection |
 | 2026-02-21 22:50 | Gov dashboard + compliance | 156 | /api/gov/* endpoints |
 | 2026-02-21 22:53 | Merge + lint fix | 197 | All items complete ✅ |
+
+## 2026-02-23 15:05 PST — WebSocket reconnection hardening + full relay integration tests
+
+### Completed
+- **WebSocket reconnection handling (server-side, Item #10 iteration):**
+  - Updated `app/ws/conversation_relay.py::_handle_setup` to be **CallSid idempotent**.
+  - If Twilio reconnects with the same `callSid`, we now reuse the existing `Call` row instead of creating duplicates.
+  - `call_started` notifications/broadcasts are emitted only for truly new calls.
+- **Caller preference storage per phone number (Item #5 integration polish):**
+  - On first setup for a new inbound call, increment `caller_preferences.call_count` and set `last_call_at`.
+  - Reconnects for the same CallSid do **not** double-increment.
+- **Integration tests for full call flow (Item #2):**
+  - Added `tests/test_conversation_relay_integration.py` with coverage for:
+    - setup reconnect idempotency (no duplicate call row, no double count)
+    - setup → prompt → disconnect flow
+    - call completion + transcript summary persistence
+    - response token emission to ConversationRelay client
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **355 passed**
+

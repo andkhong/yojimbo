@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.database import Base, get_db
 from app.models.appointment import TimeSlot
+from app.models.caller_preference import CallerPreference  # noqa: F401
 from app.models.department import Department
 from app.models.user import DashboardUser
 from app.core.security import hash_password
