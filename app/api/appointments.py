@@ -27,6 +27,16 @@ def _i18n_error(message_key: str, message: str, **params):
     return {"message_key": message_key, "message": message, "params": params}
 
 
+def _import_row_error(row: int, message_key: str, message: str, **params):
+    """Build i18n-ready row error payload for bulk import responses."""
+    return {
+        "row": row,
+        "message_key": message_key,
+        "message": message,
+        "params": params,
+    }
+
+
 @router.get("")
 async def list_appointments(
     db: AsyncSession = Depends(get_db),
@@ -264,16 +274,38 @@ async def bulk_import_appointments(
         dept = dept_map.get(row.department_code.upper())
 
         if not contact:
-            errors.append({"row": i, "reason": f"Contact not found: {row.contact_phone}"})
+            errors.append(
+                _import_row_error(
+                    i,
+                    "appointments.import.contact_not_found",
+                    f"Contact not found: {row.contact_phone}",
+                    contact_phone=row.contact_phone,
+                )
+            )
             continue
         if not dept:
-            errors.append({"row": i, "reason": f"Department not found: {row.department_code}"})
+            errors.append(
+                _import_row_error(
+                    i,
+                    "appointments.import.department_not_found",
+                    f"Department not found: {row.department_code}",
+                    department_code=row.department_code,
+                )
+            )
             continue
 
         try:
             start = datetime.fromisoformat(row.scheduled_start)
         except ValueError:
-            errors.append({"row": i, "reason": f"Invalid scheduled_start: {row.scheduled_start}"})
+            errors.append(
+                _import_row_error(
+                    i,
+                    "appointments.import.invalid_datetime",
+                    f"Invalid scheduled_start: {row.scheduled_start}",
+                    field="scheduled_start",
+                    value=row.scheduled_start,
+                )
+            )
             continue
 
         end = (

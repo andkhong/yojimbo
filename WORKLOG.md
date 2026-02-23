@@ -1,5 +1,25 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 14:04 PST — Iteration: bulk-import i18n-ready row errors + contract coverage ✅
+
+### Shipped in this iteration
+- Improved bulk appointment import error payloads (`app/api/appointments.py`) to be **i18n-ready per row** via structured fields:
+  - `message_key`
+  - `message`
+  - `params`
+- Added dedicated row-level translation keys:
+  - `appointments.import.contact_not_found`
+  - `appointments.import.department_not_found`
+  - `appointments.import.invalid_datetime`
+- Expanded import error-path tests (`tests/test_new_features.py`) to validate payload contracts and keys across unknown-contact, unknown-department, invalid-datetime, and mixed-result scenarios.
+- Test suite remains stable at **347 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **347 passed**
+
+---
+
 ## 2026-02-23 13:49 PST — Iteration: operating-hours overnight enforcement edge cases ✅
 
 ### Shipped in this iteration

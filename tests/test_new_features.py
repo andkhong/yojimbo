@@ -594,6 +594,9 @@ async def test_bulk_import_unknown_contact_error(client, db):
     data = resp.json()
     assert data["errors"] == 1
     assert data["created"] == 0
+    err = data["error_rows"][0]
+    assert err["message_key"] == "appointments.import.contact_not_found"
+    assert err["params"]["contact_phone"] == "+15599999001"
 
 
 @pytest.mark.asyncio
@@ -615,7 +618,11 @@ async def test_bulk_import_unknown_dept_error(client, db):
         },
     )
     assert resp.status_code == 201
-    assert resp.json()["errors"] == 1
+    data = resp.json()
+    assert data["errors"] == 1
+    err = data["error_rows"][0]
+    assert err["message_key"] == "appointments.import.department_not_found"
+    assert err["params"]["department_code"] == "XXXXXX"
 
 
 @pytest.mark.asyncio
@@ -698,6 +705,11 @@ async def test_bulk_import_mixed_results(client, db):
     assert data["total_rows"] == 3
     assert data["created"] == 1
     assert data["errors"] == 2
+    keys = {row["message_key"] for row in data["error_rows"]}
+    assert keys == {
+        "appointments.import.contact_not_found",
+        "appointments.import.department_not_found",
+    }
 
 
 @pytest.mark.asyncio
@@ -721,7 +733,11 @@ async def test_bulk_import_invalid_datetime_row(client, db):
         },
     )
     assert resp.status_code == 201
-    assert resp.json()["errors"] == 1
+    data = resp.json()
+    assert data["errors"] == 1
+    err = data["error_rows"][0]
+    assert err["message_key"] == "appointments.import.invalid_datetime"
+    assert err["params"]["field"] == "scheduled_start"
 
 
 @pytest.mark.asyncio
