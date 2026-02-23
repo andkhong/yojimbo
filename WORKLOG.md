@@ -1,5 +1,19 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 13:06 PST — Iteration: additional monitor reconnect edge-case coverage ✅
+
+### Shipped in this iteration
+- Expanded WebSocket monitor test coverage (`tests/test_recordings_and_monitor.py`) with reconnect/error-path edge cases:
+  - replay buffer max-length behavior validation (drops oldest events as buffer fills)
+  - invalid `last_event_id` query parameter handling during reconnect (graceful connect, no replay)
+- Increased suite size from 327 to **329 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **329 passed**
+
+---
+
 ## 2026-02-23 12:52 PST — Iteration: monitor WS replay on reconnect ✅
 
 ### Shipped in this iteration

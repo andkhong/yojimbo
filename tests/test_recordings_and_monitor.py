@@ -189,6 +189,66 @@ async def test_monitor_events_since_returns_only_newer_events():
 
 
 @pytest.mark.asyncio
+async def test_monitor_replay_buffer_respects_max_history():
+    """Replay buffer should cap history at _EVENT_HISTORY_MAX newest events."""
+    from app.ws import monitor as m
+
+    original_history = m._event_history
+
+    try:
+        m._event_history = m.deque(maxlen=3)
+        m._record_event({"event": "e1", "data": {}})
+        m._record_event({"event": "e2", "data": {}})
+        m._record_event({"event": "e3", "data": {}})
+        m._record_event({"event": "e4", "data": {}})
+
+        assert len(m._event_history) == 3
+        events = list(m._event_history)
+        assert [e["event"] for e in events] == ["e2", "e3", "e4"]
+    finally:
+        m._event_history = original_history
+
+
+@pytest.mark.asyncio
+async def test_monitor_ws_invalid_last_event_id_skips_replay(monkeypatch):
+    """Non-integer last_event_id should not trigger replay and should still connect."""
+    from app.ws import monitor as m
+
+    class _FakeWebSocket:
+        def __init__(self):
+            self.query_params = {"last_event_id": "not-an-int"}
+            self.sent = []
+
+        async def send_text(self, text: str):
+            self.sent.append(text)
+
+        async def iter_text(self):
+            if False:
+                yield ""
+
+    fake_ws = _FakeWebSocket()
+
+    async def _fake_connect(ws):
+        return None
+
+    async def _fake_ping_loop(_ws):
+        return None
+
+    monkeypatch.setattr(m.monitor_manager, "connect", _fake_connect)
+    monkeypatch.setattr(m.monitor_manager, "disconnect", lambda _ws: None)
+    monkeypatch.setattr(m, "_ping_loop", _fake_ping_loop)
+
+    await m.handle_monitor_ws(fake_ws)
+
+    sent_payloads = [json.loads(msg) for msg in fake_ws.sent]
+    connected_msgs = [p for p in sent_payloads if p.get("event") == "connected"]
+    replay_msgs = [p for p in sent_payloads if p.get("event_id") is not None]
+
+    assert len(connected_msgs) == 1
+    assert replay_msgs == []
+
+
+@pytest.mark.asyncio
 async def test_monitor_manager_connect_disconnect():
     """ConnectionManager tracks connections."""
     from unittest.mock import AsyncMock, MagicMock
