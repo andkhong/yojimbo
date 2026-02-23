@@ -1,5 +1,21 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 13:32 PST — Iteration: pagination validation/error-path coverage expansion ✅
+
+### Shipped in this iteration
+- Expanded pagination error-path coverage in `tests/test_platform_tier3.py` with new parameterized tests across all paginated list APIs:
+  - reject invalid `page=0` for:
+    - `/api/calls`, `/api/contacts`, `/api/users`, `/api/knowledge`, `/api/audit-logs`, `/api/appointments`, `/api/messages`
+  - reject `per_page` above endpoint max bounds (100/200 depending on API)
+- Added **14 new assertions** for boundary validation behavior and consistent `422` responses.
+- Increased suite size from 331 to **345 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **345 passed**
+
+---
+
 ## 2026-02-23 13:24 PST — Iteration: i18n-ready appointment errors + conflict/not-found coverage ✅
 
 ### Shipped in this iteration

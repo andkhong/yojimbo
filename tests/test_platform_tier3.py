@@ -251,6 +251,44 @@ async def test_audit_logs_pagination(client, db):
     assert resp.json()["total"] == 10
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "/api/calls",
+        "/api/contacts",
+        "/api/users",
+        "/api/knowledge",
+        "/api/audit-logs",
+        "/api/appointments",
+        "/api/messages",
+    ],
+)
+async def test_list_endpoints_reject_invalid_page(endpoint, client):
+    """All paginated list endpoints reject page values below 1."""
+    resp = await client.get(f"{endpoint}?page=0")
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "endpoint,max_per_page",
+    [
+        ("/api/calls", 100),
+        ("/api/contacts", 100),
+        ("/api/users", 200),
+        ("/api/knowledge", 200),
+        ("/api/audit-logs", 200),
+        ("/api/appointments", 100),
+        ("/api/messages", 100),
+    ],
+)
+async def test_list_endpoints_reject_per_page_over_max(endpoint, max_per_page, client):
+    """Paginated endpoints enforce documented upper bounds for per_page."""
+    resp = await client.get(f"{endpoint}?per_page={max_per_page + 1}")
+    assert resp.status_code == 422
+
+
 # ===========================================================================
 # Edge cases: 404s and not-found scenarios
 # ===========================================================================
