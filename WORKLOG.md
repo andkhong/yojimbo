@@ -931,3 +931,17 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 10:33 PST — CSP directive hardening (CORS/CSP focus)
+
+### Completed
+- Hardened `Content-Security-Policy` defaults in `app/middleware/security_headers.py` by adding:
+  - `object-src 'none'` to block plugin/object embeds
+  - `form-action 'self'` to prevent cross-origin form submission targets
+- Added focused regression coverage in `tests/test_new_features.py`:
+  - `test_security_headers_csp_blocks_plugin_and_external_form_posts`
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **412 passed**

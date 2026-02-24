@@ -32,6 +32,8 @@ _CSP = (
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: https:; "
     "connect-src 'self' https://api.twilio.com wss: ws:; "
+    "object-src 'none'; "
+    "form-action 'self'; "
     "frame-ancestors 'none'; "
     "base-uri 'self';"
 )
