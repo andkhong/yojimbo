@@ -1,3 +1,19 @@
+## 2026-02-24 02:38 PST — Security headers: add cross-origin isolation protections ✅
+
+### Shipped in this iteration
+- Hardened API security headers in `app/middleware/security_headers.py` by adding:
+  - `Cross-Origin-Opener-Policy: same-origin`
+  - `Cross-Origin-Resource-Policy: same-origin`
+- Extended existing security-header coverage in `tests/test_new_features.py` to assert both new headers and exact values.
+- Kept scope intentionally small and reviewable (middleware + one test file).
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration

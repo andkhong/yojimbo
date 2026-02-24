@@ -41,6 +41,8 @@ _FRAME = "DENY"
 _CONTENT_TYPE = "nosniff"
 _REFERRER = "strict-origin-when-cross-origin"
 _PERMISSIONS = "geolocation=(), microphone=(), camera=(), payment=()"
+_CROSS_ORIGIN_OPENER = "same-origin"
+_CROSS_ORIGIN_RESOURCE = "same-origin"
 
 
 def _normalize_origin(origin: str) -> str:
@@ -150,6 +152,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = _FRAME
         response.headers["Referrer-Policy"] = _REFERRER
         response.headers["Permissions-Policy"] = _PERMISSIONS
+        response.headers["Cross-Origin-Opener-Policy"] = _CROSS_ORIGIN_OPENER
+        response.headers["Cross-Origin-Resource-Policy"] = _CROSS_ORIGIN_RESOURCE
         response.headers["Content-Security-Policy"] = _CSP
         if not is_debug:
             response.headers["Strict-Transport-Security"] = _HSTS
