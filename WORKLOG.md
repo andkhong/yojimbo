@@ -931,3 +931,18 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 10:19 PST — CORS/CSP hardening: API-only CORS + strict preflight detection
+
+### Completed
+- Tightened `SecurityHeadersMiddleware` CORS behavior to apply only on `/api*` paths.
+- Updated preflight handling to require `Access-Control-Request-Method` before short-circuiting to `204`.
+- Added/updated CORS tests to:
+  - include valid preflight headers where expected,
+  - verify no CORS headers are emitted for non-API routes,
+  - verify OPTIONS+Origin without preflight method is not treated as preflight.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **413 passed**
