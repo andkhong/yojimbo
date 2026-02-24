@@ -931,3 +931,19 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 09:03 PST — CSP websocket hardening (small PR)
+
+### Completed
+- Hardened `Content-Security-Policy` generation in `app/middleware/security_headers.py`:
+  - Added `_build_csp(is_debug)` to compute `connect-src` by environment.
+  - Production now allows only secure websockets (`wss:`), not plain `ws:`.
+  - Debug mode remains permissive and keeps `ws:` for local dev tooling.
+- Added focused regression coverage in `tests/test_new_features.py`:
+  - `test_security_headers_csp_disallows_plain_ws_in_production`
+  - `test_security_headers_csp_allows_plain_ws_in_debug`
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **413 passed**
