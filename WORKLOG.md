@@ -1,5 +1,26 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 19:26 PST — Iteration: users API i18n-ready error contracts + coverage expansion ✅
+
+### Shipped in this iteration
+- Improved `app/api/users.py` error responses to use i18n-ready structured payloads (`message_key`, `message`, `params`) for common failure paths:
+  - `users.invalid_role` (create/update/by-role)
+  - `users.username_taken` (duplicate username)
+  - `users.not_found` (get/patch/delete/activate)
+  - `users.last_admin_deactivate_forbidden` (last active admin guard)
+- Added dedicated regression tests in `tests/test_users_i18n_errors.py`:
+  - duplicate username contract
+  - not-found payload contract
+  - last-admin deactivate guard payload contract
+  - invalid role payload contract for `/api/users/by-role/{role}`
+- Increased suite size from **378** to **382 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **382 passed**
+
+---
+
 ## 2026-02-23 19:08 PST — Iteration: CORS cache correctness hardening + security coverage ✅
 
 ### Shipped in this iteration
