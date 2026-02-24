@@ -756,3 +756,24 @@ Low priority polish (all major features done):
 ### Validation
 - `ruff check app/ tests/ --fix` ✅
 - `pytest -q` ✅ **392 passed**
+
+## 2026-02-23 21:04 PST — Departments API i18n-ready error payloads (Item #3 iteration)
+
+### Completed
+- Expanded i18n-ready error detail coverage in `app/api/departments.py`:
+  - Added `_localized_error(...)` helper for structured error payloads.
+  - Converted key string-only errors to structured `detail` objects with `message_key`, `message`, and `params`:
+    - `departments.not_found` (all major department lookup paths)
+    - `departments.conflict.code_or_name_exists`
+    - `departments.phone_number.already_assigned`
+    - `departments.time_slot.not_found`
+    - `departments.time_slot.invalid_day_of_week`
+    - `departments.availability.invalid_date_format`
+- Added focused regression tests in `tests/test_departments_i18n_errors.py`:
+  - `test_department_not_found_error_is_i18n_ready`
+  - `test_bulk_slot_invalid_day_error_is_i18n_ready`
+  - `test_slot_availability_invalid_date_error_is_i18n_ready`
+
+### Validation
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **395 passed**
