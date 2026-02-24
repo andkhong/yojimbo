@@ -931,3 +931,17 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 10:03 PST — Migration index safety guards (DB index safety)
+
+### Completed
+- Hardened `alembic/versions/9a7e1c2d4f10_add_sms_and_timeslot_indexes.py` for safer reruns:
+  - Added SQLAlchemy inspector-based `_index_exists(...)` helper.
+  - Added `_create_index_if_missing(...)` to avoid duplicate-index failures in upgrade paths.
+  - Added `_drop_index_if_exists(...)` to avoid downgrade failures when indexes are absent.
+- Applied guards to all four indexes in this migration (`ix_sms_created`, `ix_sms_contact_created`, `ix_sms_dept_created`, `ix_time_slots_lookup`).
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
