@@ -833,3 +833,20 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **395 passed**
+
+## 2026-02-23 22:04 PST — Calls API i18n-ready error payloads (Item #3 iteration)
+
+### Completed
+- Expanded Item #3 by converting key `app/api/calls.py` errors from plain strings into structured i18n-ready payloads.
+- Added `_localized_error(message_key, message, **params)` helper and applied it to:
+  - `calls.not_found` for call lookups (`GET /api/calls/{id}`, transfer, recording GET/PUT, terminate)
+  - `calls.transfer.invalid_status` with `status` and `allowed_statuses` params
+  - `calls.terminate.invalid_status` with `status` and `allowed_statuses` params
+- Added focused contract tests in `tests/test_calls_i18n_errors.py`:
+  - `test_get_call_not_found_error_is_i18n_ready`
+  - `test_transfer_invalid_status_error_is_i18n_ready`
+  - `test_terminate_invalid_status_error_is_i18n_ready`
+
+### Validation
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **400 passed**
