@@ -1,3 +1,20 @@
+## 2026-02-24 03:36 PST — CSP hardening: block plugin embeds + cross-site form submissions ✅
+
+### Shipped in this iteration
+- Hardened `Content-Security-Policy` in `app/middleware/security_headers.py` by adding:
+  - `object-src 'none'` to disallow plugin/object/embed content
+  - `form-action 'self'` to prevent cross-site form post targets
+- Added regression coverage in `tests/test_new_features.py`:
+  - `test_security_headers_csp_disables_plugins_and_cross_site_forms`
+- Increased suite size from **411** to **412 passing tests**.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **412 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
