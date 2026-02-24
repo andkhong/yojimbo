@@ -90,8 +90,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         allowed_origins = _get_allowed_origins()
         origin = request.headers.get("origin", "")
 
-        # Handle CORS preflight (OPTIONS)
-        if request.method == "OPTIONS" and origin:
+        # Handle only real CORS preflight requests for API routes.
+        is_cors_preflight = (
+            request.method == "OPTIONS"
+            and origin
+            and request.headers.get("access-control-request-method")
+            and request.url.path.startswith("/api/")
+        )
+        if is_cors_preflight:
             response = Response(status_code=204)
             self._add_cors_headers(response, origin, is_debug, allowed_origins)
             self._add_security_headers(response, is_debug)
@@ -99,8 +105,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
 
-        # CORS headers for actual requests
-        if origin:
+        # CORS headers for actual requests. Skip non-preflight OPTIONS requests.
+        if origin and request.method != "OPTIONS":
             self._add_cors_headers(response, origin, is_debug, allowed_origins)
 
         # Security headers on all responses

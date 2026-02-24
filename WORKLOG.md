@@ -1,3 +1,22 @@
+## 2026-02-24 01:45 PST — CORS preflight hardening: require Access-Control-Request-Method ✅
+
+### Shipped in this iteration
+- Hardened `app/middleware/security_headers.py` to treat only **real** preflight requests as preflight:
+  - requires `OPTIONS` + `Origin` + `Access-Control-Request-Method`
+  - limited preflight short-circuit behavior to `/api/*` routes
+  - skips adding CORS allow headers on non-preflight `OPTIONS` responses
+- Updated CORS tests in `tests/test_new_features.py`:
+  - preflight requests now include `Access-Control-Request-Method`
+  - added regression test ensuring `OPTIONS` + `Origin` without preflight header does not emit CORS allow headers
+- Increased suite size from **411** to **412 passing tests**.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **412 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
