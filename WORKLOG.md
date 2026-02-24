@@ -1,3 +1,21 @@
+## 2026-02-23 23:17 PST — Status callback negative-duration clamp hardening + integration coverage ✅
+
+### Shipped in this iteration
+- Hardened Twilio status callback duration parsing in `app/api/twilio_webhooks.py` for `completed` calls:
+  - negative `CallDuration` values are now clamped to `0`
+  - emits warning log for observability (`Negative CallDuration ... clamped to 0`)
+  - preserves existing invalid-value fallback behavior (`NaN`/non-integer -> `0`)
+- Expanded full call-flow integration coverage in `tests/test_call_flow_integration.py`:
+  - parameterized `test_status_callback_invalid_completed_duration_defaults_to_zero`
+  - now validates both non-numeric and negative duration inputs (`"NaN"`, `"-5"`)
+- Increased suite size from **411** to **412 passing tests**.
+
+### Validation
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **412 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration

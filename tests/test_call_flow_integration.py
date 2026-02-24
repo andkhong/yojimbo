@@ -120,8 +120,11 @@ async def test_outbound_voice_twiml_includes_conversation_relay(client):
 
 
 @pytest.mark.asyncio
-async def test_status_callback_invalid_completed_duration_defaults_to_zero(client, db, monkeypatch):
-    """Invalid completed duration should not 500 and should store a safe default."""
+@pytest.mark.parametrize("duration_value", ["NaN", "-5"])
+async def test_status_callback_invalid_completed_duration_defaults_to_zero(
+    client, db, monkeypatch, duration_value
+):
+    """Invalid/negative completed duration should not 500 and should store a safe default."""
     _install_fake_twilio(monkeypatch)
 
     create_resp = await client.post(
@@ -134,7 +137,7 @@ async def test_status_callback_invalid_completed_duration_defaults_to_zero(clien
 
     completed = await client.post(
         "/api/twilio/status",
-        data={"CallSid": "CA_int_test_123", "CallStatus": "completed", "CallDuration": "NaN"},
+        data={"CallSid": "CA_int_test_123", "CallStatus": "completed", "CallDuration": duration_value},
     )
     assert completed.status_code == 204
 

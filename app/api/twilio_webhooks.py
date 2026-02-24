@@ -154,7 +154,16 @@ async def handle_status_callback(
         call.status = status_map.get(CallStatus, CallStatus)
         if CallStatus == "completed":
             try:
-                call.duration_seconds = int(CallDuration)
+                parsed_duration = int(CallDuration)
+                if parsed_duration < 0:
+                    logger.warning(
+                        "Negative CallDuration for completed call clamped to 0: "
+                        "CallSid=%s CallDuration=%r",
+                        CallSid,
+                        CallDuration,
+                    )
+                    parsed_duration = 0
+                call.duration_seconds = parsed_duration
             except (TypeError, ValueError):
                 logger.warning(
                     "Invalid CallDuration for completed call: CallSid=%s CallDuration=%r",
