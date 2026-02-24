@@ -931,3 +931,17 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 09:40 PST — DB index migration safety (small PR)
+
+### Completed
+- Hardened migration `9a7e1c2d4f10_add_sms_and_timeslot_indexes` to be idempotent:
+  - Added `_index_exists(...)` helper using SQLAlchemy inspector.
+  - `upgrade()` now creates each index only when missing.
+  - `downgrade()` now drops each index only when present.
+- This avoids migration failures in partially-migrated or manually-indexed environments.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
