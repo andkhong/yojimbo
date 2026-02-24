@@ -8,7 +8,7 @@ Adds government-appropriate security headers to all responses:
   - Referrer-Policy
   - Permissions-Policy
 
-CORS is handled for /api/* endpoints to support:
+CORS is handled for /api* endpoints (and only valid preflight requests) to support:
   - The admin dashboard SPA (same-origin or configured origin)
   - External government integrations that use the REST API
 
@@ -89,9 +89,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         is_debug = os.getenv("DEBUG", "false").lower() in ("1", "true", "yes")
         allowed_origins = _get_allowed_origins()
         origin = request.headers.get("origin", "")
+        is_api_request = request.url.path.startswith("/api")
 
-        # Handle CORS preflight (OPTIONS)
-        if request.method == "OPTIONS" and origin:
+        # Handle CORS preflight (OPTIONS) only for API endpoints and real preflight requests.
+        if (
+            request.method == "OPTIONS"
+            and origin
+            and is_api_request
+            and request.headers.get("access-control-request-method")
+        ):
             response = Response(status_code=204)
             self._add_cors_headers(response, origin, is_debug, allowed_origins)
             self._add_security_headers(response, is_debug)
@@ -99,8 +105,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
 
-        # CORS headers for actual requests
-        if origin:
+        # CORS headers only apply to API endpoints.
+        if origin and is_api_request:
             self._add_cors_headers(response, origin, is_debug, allowed_origins)
 
         # Security headers on all responses

@@ -39,7 +39,10 @@ async def test_cors_preflight_request(client):
     """OPTIONS preflight returns correct CORS headers in debug mode."""
     resp = await client.options(
         "/api/departments",
-        headers={"origin": "https://dashboard.cityname.gov"},
+        headers={
+            "origin": "https://dashboard.cityname.gov",
+            "access-control-request-method": "GET",
+        },
     )
     # In debug mode, CORS is permissive
     assert resp.status_code in (200, 204)
@@ -72,14 +75,20 @@ async def test_cors_allowlist_enforced_in_production(client, monkeypatch):
 
     allowed = await client.options(
         "/api/departments",
-        headers={"origin": "https://dashboard.city.gov"},
+        headers={
+            "origin": "https://dashboard.city.gov",
+            "access-control-request-method": "GET",
+        },
     )
     assert allowed.status_code in (200, 204)
     assert allowed.headers.get("access-control-allow-origin") == "https://dashboard.city.gov"
 
     blocked = await client.options(
         "/api/departments",
-        headers={"origin": "https://evil.example.com"},
+        headers={
+            "origin": "https://evil.example.com",
+            "access-control-request-method": "GET",
+        },
     )
     assert blocked.status_code in (200, 204)
     assert "access-control-allow-origin" not in blocked.headers
@@ -93,7 +102,10 @@ async def test_production_requires_explicit_cors_origins(client, monkeypatch):
 
     resp = await client.options(
         "/api/departments",
-        headers={"origin": "https://dashboard.city.gov"},
+        headers={
+            "origin": "https://dashboard.city.gov",
+            "access-control-request-method": "GET",
+        },
     )
     assert resp.status_code in (200, 204)
     assert "access-control-allow-origin" not in resp.headers
@@ -108,7 +120,10 @@ async def test_cors_sets_vary_origin_for_allowed_origin(client, monkeypatch):
 
     resp = await client.options(
         "/api/departments",
-        headers={"origin": "https://dashboard.city.gov"},
+        headers={
+            "origin": "https://dashboard.city.gov",
+            "access-control-request-method": "GET",
+        },
     )
     assert resp.status_code in (200, 204)
     assert resp.headers.get("access-control-allow-origin") == "https://dashboard.city.gov"
@@ -134,10 +149,39 @@ async def test_cors_allowlist_matches_case_and_default_port_variants(client, mon
 
     resp = await client.options(
         "/api/departments",
-        headers={"origin": "https://dashboard.city.gov:443"},
+        headers={
+            "origin": "https://dashboard.city.gov:443",
+            "access-control-request-method": "GET",
+        },
     )
     assert resp.status_code in (200, 204)
     assert resp.headers.get("access-control-allow-origin") == "https://dashboard.city.gov:443"
+
+
+@pytest.mark.asyncio
+async def test_cors_headers_not_added_for_non_api_routes(client, monkeypatch):
+    """CORS should not be emitted on non-API endpoints, even for allowlisted origins."""
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://dashboard.city.gov")
+
+    resp = await client.get(
+        "/docs",
+        headers={"origin": "https://dashboard.city.gov"},
+    )
+
+    assert resp.status_code == 200
+    assert "access-control-allow-origin" not in resp.headers
+
+
+@pytest.mark.asyncio
+async def test_cors_preflight_requires_access_control_request_method_header(client):
+    """OPTIONS with Origin alone should not be treated as CORS preflight."""
+    resp = await client.options(
+        "/api/departments",
+        headers={"origin": "https://dashboard.cityname.gov"},
+    )
+
+    assert resp.status_code != 204
 
 
 def test_cors_appends_origin_to_existing_vary_header():
@@ -353,12 +397,14 @@ async def test_public_status_full(client):
 async def test_public_status_high_load_threshold(client, db):
     """Status flips to high_load when active ringing/in-progress calls exceed threshold."""
     for i in range(51):
-        db.add(Call(
-            twilio_call_sid=f"CA_hl_{i:03d}",
-            direction="inbound",
-            status="in_progress",
-            started_at=datetime.utcnow(),
-        ))
+        db.add(
+            Call(
+                twilio_call_sid=f"CA_hl_{i:03d}",
+                direction="inbound",
+                status="in_progress",
+                started_at=datetime.utcnow(),
+            )
+        )
     await db.flush()
 
     resp = await client.get("/api/status")
@@ -392,12 +438,14 @@ async def test_public_status_db_outage_sets_service_degraded(client, db, monkeyp
 async def test_public_status_metrics(client, db):
     """Status metrics reflect actual data."""
     # Add an active call
-    db.add(Call(
-        twilio_call_sid="CA_status_001",
-        direction="inbound",
-        status="in_progress",
-        started_at=datetime.utcnow(),
-    ))
+    db.add(
+        Call(
+            twilio_call_sid="CA_status_001",
+            direction="inbound",
+            status="in_progress",
+            started_at=datetime.utcnow(),
+        )
+    )
     await db.flush()
 
     resp = await client.get("/api/status")
@@ -463,9 +511,11 @@ async def test_operating_hours_check_within_hours():
     """Appointment within operating hours passes validation."""
     from app.services.appointment_engine import check_operating_hours
 
-    hours_json = json.dumps({
-        "monday": {"open": "09:00", "close": "17:00"},
-    })
+    hours_json = json.dumps(
+        {
+            "monday": {"open": "09:00", "close": "17:00"},
+        }
+    )
     # Monday at 10am
     start = datetime(2026, 2, 23, 10, 0)  # Monday
     end = datetime(2026, 2, 23, 10, 30)
@@ -477,9 +527,11 @@ async def test_operating_hours_check_before_open():
     """Appointment before opening time raises OutsideOperatingHoursError."""
     from app.services.appointment_engine import OutsideOperatingHoursError, check_operating_hours
 
-    hours_json = json.dumps({
-        "monday": {"open": "09:00", "close": "17:00"},
-    })
+    hours_json = json.dumps(
+        {
+            "monday": {"open": "09:00", "close": "17:00"},
+        }
+    )
     start = datetime(2026, 2, 23, 7, 0)  # 7am Monday — too early
     end = datetime(2026, 2, 23, 7, 30)
     with pytest.raises(OutsideOperatingHoursError) as exc_info:
@@ -494,11 +546,13 @@ async def test_operating_hours_check_after_close():
     """Appointment ending after closing time raises OutsideOperatingHoursError."""
     from app.services.appointment_engine import OutsideOperatingHoursError, check_operating_hours
 
-    hours_json = json.dumps({
-        "monday": {"open": "09:00", "close": "17:00"},
-    })
+    hours_json = json.dumps(
+        {
+            "monday": {"open": "09:00", "close": "17:00"},
+        }
+    )
     start = datetime(2026, 2, 23, 16, 30)  # 4:30pm Monday
-    end = datetime(2026, 2, 23, 17, 30)   # 5:30pm — past close
+    end = datetime(2026, 2, 23, 17, 30)  # 5:30pm — past close
     with pytest.raises(OutsideOperatingHoursError) as exc_info:
         check_operating_hours(hours_json, start, end)
     assert exc_info.value.message_key == "appointments.operating_hours.after_close"
@@ -511,10 +565,12 @@ async def test_operating_hours_closed_day():
     """Appointment on a closed day raises OutsideOperatingHoursError."""
     from app.services.appointment_engine import OutsideOperatingHoursError, check_operating_hours
 
-    hours_json = json.dumps({
-        "monday": {"open": "09:00", "close": "17:00"},
-        # No entry for Saturday = closed
-    })
+    hours_json = json.dumps(
+        {
+            "monday": {"open": "09:00", "close": "17:00"},
+            # No entry for Saturday = closed
+        }
+    )
     # Saturday
     start = datetime(2026, 2, 28, 10, 0)  # Saturday
     end = datetime(2026, 2, 28, 10, 30)
@@ -563,11 +619,13 @@ async def test_operating_hours_overnight_window_allows_cross_midnight():
     """Overnight windows (e.g. 22:00-02:00) allow bookings that end next day."""
     from app.services.appointment_engine import check_operating_hours
 
-    hours_json = json.dumps({
-        "monday": {"open": "22:00", "close": "02:00"},
-    })
+    hours_json = json.dumps(
+        {
+            "monday": {"open": "22:00", "close": "02:00"},
+        }
+    )
     start = datetime(2026, 2, 23, 23, 30)  # Monday 11:30pm
-    end = datetime(2026, 2, 24, 1, 30)     # Tuesday 1:30am
+    end = datetime(2026, 2, 24, 1, 30)  # Tuesday 1:30am
     check_operating_hours(hours_json, start, end)
 
 
@@ -576,11 +634,13 @@ async def test_operating_hours_overnight_window_rejects_after_close():
     """Overnight windows still reject bookings past close time next day."""
     from app.services.appointment_engine import OutsideOperatingHoursError, check_operating_hours
 
-    hours_json = json.dumps({
-        "monday": {"open": "22:00", "close": "02:00"},
-    })
+    hours_json = json.dumps(
+        {
+            "monday": {"open": "22:00", "close": "02:00"},
+        }
+    )
     start = datetime(2026, 2, 23, 23, 30)  # Monday 11:30pm
-    end = datetime(2026, 2, 24, 2, 30)     # Tuesday 2:30am (too late)
+    end = datetime(2026, 2, 24, 2, 30)  # Tuesday 2:30am (too late)
     with pytest.raises(OutsideOperatingHoursError) as exc_info:
         check_operating_hours(hours_json, start, end)
     assert "closes" in str(exc_info.value).lower()
@@ -589,9 +649,7 @@ async def test_operating_hours_overnight_window_rejects_after_close():
 @pytest.mark.asyncio
 async def test_booking_enforces_operating_hours_via_api(client, seeded_db):
     """POST /api/appointments returns 422 for out-of-hours booking when dept has hours."""
-    contact_resp = await client.post(
-        "/api/contacts", json={"phone_number": "+15591110001"}
-    )
+    contact_resp = await client.post("/api/contacts", json={"phone_number": "+15591110001"})
     contact_id = contact_resp.json()["contact"]["id"]
 
     # Create dept with strict hours
@@ -600,9 +658,11 @@ async def test_booking_enforces_operating_hours_via_api(client, seeded_db):
         json={
             "name": "Strict Hours Dept",
             "code": "SHD",
-            "operating_hours": json.dumps({
-                "monday": {"open": "09:00", "close": "17:00"},
-            }),
+            "operating_hours": json.dumps(
+                {
+                    "monday": {"open": "09:00", "close": "17:00"},
+                }
+            ),
         },
     )
     dept_id = dept_resp.json()["department"]["id"]
@@ -647,9 +707,7 @@ async def test_appointment_not_found_errors_are_i18n_ready(client):
 @pytest.mark.asyncio
 async def test_appointment_conflict_error_is_i18n_ready(client, seeded_db):
     """Booking conflict returns structured i18n-ready error payload."""
-    contact_resp = await client.post(
-        "/api/contacts", json={"phone_number": "+15591110002"}
-    )
+    contact_resp = await client.post("/api/contacts", json={"phone_number": "+15591110002"})
     contact_id = contact_resp.json()["contact"]["id"]
 
     dept_resp = await client.post(
@@ -743,12 +801,14 @@ async def test_bulk_import_dry_run(client, db):
     resp = await client.post(
         "/api/appointments/import",
         json={
-            "appointments": [{
-                "contact_phone": "+15592220002",
-                "department_code": "DRY",
-                "title": "Dry Run Appt",
-                "scheduled_start": "2026-03-03T09:00:00",
-            }],
+            "appointments": [
+                {
+                    "contact_phone": "+15592220002",
+                    "department_code": "DRY",
+                    "title": "Dry Run Appt",
+                    "scheduled_start": "2026-03-03T09:00:00",
+                }
+            ],
             "dry_run": True,
         },
     )
@@ -770,12 +830,14 @@ async def test_bulk_import_unknown_contact_error(client, db):
     resp = await client.post(
         "/api/appointments/import",
         json={
-            "appointments": [{
-                "contact_phone": "+15599999001",  # doesn't exist
-                "department_code": "ERR",
-                "title": "Orphan Appt",
-                "scheduled_start": "2026-03-04T09:00:00",
-            }],
+            "appointments": [
+                {
+                    "contact_phone": "+15599999001",  # doesn't exist
+                    "department_code": "ERR",
+                    "title": "Orphan Appt",
+                    "scheduled_start": "2026-03-04T09:00:00",
+                }
+            ],
         },
     )
     assert resp.status_code == 201
@@ -797,12 +859,14 @@ async def test_bulk_import_unknown_dept_error(client, db):
     resp = await client.post(
         "/api/appointments/import",
         json={
-            "appointments": [{
-                "contact_phone": "+15592220003",
-                "department_code": "XXXXXX",  # doesn't exist
-                "title": "Bad Dept Appt",
-                "scheduled_start": "2026-03-05T09:00:00",
-            }],
+            "appointments": [
+                {
+                    "contact_phone": "+15592220003",
+                    "department_code": "XXXXXX",  # doesn't exist
+                    "title": "Bad Dept Appt",
+                    "scheduled_start": "2026-03-05T09:00:00",
+                }
+            ],
         },
     )
     assert resp.status_code == 201
@@ -826,12 +890,14 @@ async def test_bulk_import_matches_department_code_case_insensitively(client, db
     resp = await client.post(
         "/api/appointments/import",
         json={
-            "appointments": [{
-                "contact_phone": "+15592220012",
-                "department_code": "LC1",
-                "title": "Case Insensitive Dept Code",
-                "scheduled_start": "2026-03-13T09:00:00",
-            }],
+            "appointments": [
+                {
+                    "contact_phone": "+15592220012",
+                    "department_code": "LC1",
+                    "title": "Case Insensitive Dept Code",
+                    "scheduled_start": "2026-03-13T09:00:00",
+                }
+            ],
         },
     )
 
@@ -851,25 +917,29 @@ async def test_bulk_import_skip_duplicates(client, db):
     await db.flush()
 
     # Pre-create an appointment
-    db.add(Appointment(
-        contact_id=contact.id,
-        department_id=dept.id,
-        title="Pre-existing",
-        status="confirmed",
-        scheduled_start=datetime(2026, 3, 10, 9, 0),
-        scheduled_end=datetime(2026, 3, 10, 9, 30),
-    ))
+    db.add(
+        Appointment(
+            contact_id=contact.id,
+            department_id=dept.id,
+            title="Pre-existing",
+            status="confirmed",
+            scheduled_start=datetime(2026, 3, 10, 9, 0),
+            scheduled_end=datetime(2026, 3, 10, 9, 30),
+        )
+    )
     await db.flush()
 
     resp = await client.post(
         "/api/appointments/import",
         json={
-            "appointments": [{
-                "contact_phone": "+15592220004",
-                "department_code": "SKP",
-                "title": "Duplicate",
-                "scheduled_start": "2026-03-10T09:00:00",
-            }],
+            "appointments": [
+                {
+                    "contact_phone": "+15592220004",
+                    "department_code": "SKP",
+                    "title": "Duplicate",
+                    "scheduled_start": "2026-03-10T09:00:00",
+                }
+            ],
             "skip_duplicates": True,
         },
     )
@@ -940,12 +1010,14 @@ async def test_bulk_import_invalid_datetime_row(client, db):
     resp = await client.post(
         "/api/appointments/import",
         json={
-            "appointments": [{
-                "contact_phone": "+15592220006",
-                "department_code": "DTM",
-                "title": "Bad Datetime",
-                "scheduled_start": "not-a-date",
-            }],
+            "appointments": [
+                {
+                    "contact_phone": "+15592220006",
+                    "department_code": "DTM",
+                    "title": "Bad Datetime",
+                    "scheduled_start": "not-a-date",
+                }
+            ],
         },
     )
     assert resp.status_code == 201
@@ -969,16 +1041,20 @@ async def test_bulk_import_default_end_time_is_one_hour(client, db):
     resp = await client.post(
         "/api/appointments/import",
         json={
-            "appointments": [{
-                "contact_phone": "+15592220007",
-                "department_code": "DEF",
-                "title": "Default End",
-                "scheduled_start": start,
-            }],
+            "appointments": [
+                {
+                    "contact_phone": "+15592220007",
+                    "department_code": "DEF",
+                    "title": "Default End",
+                    "scheduled_start": start,
+                }
+            ],
         },
     )
     assert resp.status_code == 201
-    appt = (await db.execute(select(Appointment).where(Appointment.title == "Default End"))).scalar_one()
+    appt = (
+        await db.execute(select(Appointment).where(Appointment.title == "Default End"))
+    ).scalar_one()
     assert int((appt.scheduled_end - appt.scheduled_start).total_seconds()) == 3600
 
 
@@ -1030,13 +1106,15 @@ async def test_bulk_import_invalid_scheduled_end_row(client, db):
     resp = await client.post(
         "/api/appointments/import",
         json={
-            "appointments": [{
-                "contact_phone": "+15592220009",
-                "department_code": "BND",
-                "title": "Bad End",
-                "scheduled_start": "2026-03-12T09:00:00",
-                "scheduled_end": "definitely-not-a-date",
-            }],
+            "appointments": [
+                {
+                    "contact_phone": "+15592220009",
+                    "department_code": "BND",
+                    "title": "Bad End",
+                    "scheduled_start": "2026-03-12T09:00:00",
+                    "scheduled_end": "definitely-not-a-date",
+                }
+            ],
         },
     )
 
@@ -1061,13 +1139,15 @@ async def test_bulk_import_end_before_start_row(client, db):
     resp = await client.post(
         "/api/appointments/import",
         json={
-            "appointments": [{
-                "contact_phone": "+15592220010",
-                "department_code": "WND",
-                "title": "Backwards Window",
-                "scheduled_start": "2026-03-12T11:00:00",
-                "scheduled_end": "2026-03-12T10:59:00",
-            }],
+            "appointments": [
+                {
+                    "contact_phone": "+15592220010",
+                    "department_code": "WND",
+                    "title": "Backwards Window",
+                    "scheduled_start": "2026-03-12T11:00:00",
+                    "scheduled_end": "2026-03-12T10:59:00",
+                }
+            ],
         },
     )
 
@@ -1098,13 +1178,15 @@ async def test_bulk_import_enforces_operating_hours(client, db):
     resp = await client.post(
         "/api/appointments/import",
         json={
-            "appointments": [{
-                "contact_phone": "+15592220011",
-                "department_code": "HRS",
-                "title": "Too Early",
-                "scheduled_start": "2026-03-09T08:30:00",
-                "scheduled_end": "2026-03-09T09:00:00",
-            }],
+            "appointments": [
+                {
+                    "contact_phone": "+15592220011",
+                    "department_code": "HRS",
+                    "title": "Too Early",
+                    "scheduled_start": "2026-03-09T08:30:00",
+                    "scheduled_end": "2026-03-09T09:00:00",
+                }
+            ],
         },
     )
 
