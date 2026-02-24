@@ -1,3 +1,19 @@
+## 2026-02-24 02:52 PST — Security headers hardening: cross-origin isolation defaults ✅
+
+### Shipped in this iteration
+- Hardened default browser isolation posture in `app/middleware/security_headers.py` by adding:
+  - `Cross-Origin-Opener-Policy: same-origin`
+  - `Cross-Origin-Resource-Policy: same-origin`
+- Extended security-header regression coverage in `tests/test_new_features.py` to assert both new headers and expected values.
+- Kept scope intentionally small and reviewable (middleware + tests only).
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
