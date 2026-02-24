@@ -148,8 +148,16 @@ async def initiate_outbound_call(
 
         return {"call": CallResponse.model_validate(db_call)}
 
-    except Exception as e:
-        return {"error": f"Failed to initiate call: {e}"}
+    except Exception as exc:
+        logger.exception("Failed to initiate outbound call")
+        raise HTTPException(
+            status_code=502,
+            detail=_localized_error(
+                "calls.outbound.failed",
+                "Failed to initiate outbound call",
+                reason=str(exc),
+            ),
+        ) from exc
 
 
 # --- Parameterised endpoints last ---
@@ -232,9 +240,7 @@ async def transfer_call(
 @router.get("/{call_id}/recording", summary="Get the recording URL for a completed call")
 async def get_call_recording(call_id: int, db: AsyncSession = Depends(get_db)):
     """Return the Twilio recording URL for a completed call (if recording was enabled)."""
-    call = (await db.execute(
-        select(Call).where(Call.id == call_id)
-    )).scalar_one_or_none()
+    call = (await db.execute(select(Call).where(Call.id == call_id))).scalar_one_or_none()
     if not call:
         raise HTTPException(
             status_code=404,
@@ -274,9 +280,7 @@ async def set_call_recording(
 
     Called by the Twilio recording status callback webhook.
     """
-    call = (await db.execute(
-        select(Call).where(Call.id == call_id)
-    )).scalar_one_or_none()
+    call = (await db.execute(select(Call).where(Call.id == call_id))).scalar_one_or_none()
     if not call:
         raise HTTPException(
             status_code=404,
