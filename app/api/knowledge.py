@@ -11,6 +11,15 @@ from app.schemas.knowledge import KnowledgeCreate, KnowledgeResponse, KnowledgeU
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
 
 
+def _localized_error(message_key: str, message: str, **params: object) -> dict[str, object]:
+    """Return i18n-ready API error payload with stable translation key and params."""
+    return {
+        "message_key": message_key,
+        "message": message,
+        "params": params,
+    }
+
+
 @router.get("", summary="List knowledge base entries")
 async def list_knowledge(
     db: AsyncSession = Depends(get_db),
@@ -132,7 +141,14 @@ async def get_knowledge(entry_id: int, db: AsyncSession = Depends(get_db)):
         await db.execute(select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id))
     ).scalar_one_or_none()
     if not entry:
-        raise HTTPException(status_code=404, detail="Knowledge entry not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "knowledge.not_found",
+                "Knowledge entry not found",
+                entry_id=entry_id,
+            ),
+        )
     return {"entry": KnowledgeResponse.model_validate(entry)}
 
 
@@ -147,7 +163,14 @@ async def update_knowledge(
         await db.execute(select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id))
     ).scalar_one_or_none()
     if not entry:
-        raise HTTPException(status_code=404, detail="Knowledge entry not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "knowledge.not_found",
+                "Knowledge entry not found",
+                entry_id=entry_id,
+            ),
+        )
 
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(entry, field, value)
@@ -162,7 +185,14 @@ async def delete_knowledge(entry_id: int, db: AsyncSession = Depends(get_db)):
         await db.execute(select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id))
     ).scalar_one_or_none()
     if not entry:
-        raise HTTPException(status_code=404, detail="Knowledge entry not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "knowledge.not_found",
+                "Knowledge entry not found",
+                entry_id=entry_id,
+            ),
+        )
     entry.is_active = False
     return None
 
@@ -174,6 +204,13 @@ async def restore_knowledge(entry_id: int, db: AsyncSession = Depends(get_db)):
         await db.execute(select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id))
     ).scalar_one_or_none()
     if not entry:
-        raise HTTPException(status_code=404, detail="Knowledge entry not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "knowledge.not_found",
+                "Knowledge entry not found",
+                entry_id=entry_id,
+            ),
+        )
     entry.is_active = True
     return {"entry": KnowledgeResponse.model_validate(entry)}

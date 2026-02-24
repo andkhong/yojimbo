@@ -1,3 +1,26 @@
+## 2026-02-23 22:26 PST — Knowledge + audit-log i18n-ready not-found errors ✅
+
+### Shipped in this iteration
+- Expanded i18n-ready error contracts for additional APIs:
+  - `app/api/knowledge.py`
+    - added `_localized_error(...)` helper
+    - converted not-found paths on `GET/PATCH/DELETE/restore /api/knowledge/{entry_id}`
+    - stable key: `knowledge.not_found` with `params.entry_id`
+  - `app/api/audit_logs.py`
+    - added `_localized_error(...)` helper
+    - converted `GET /api/audit-logs/{log_id}` not-found response
+    - stable key: `audit_logs.not_found` with `params.log_id`
+- Added focused contract tests in `tests/test_knowledge_and_audit_i18n_errors.py`:
+  - `test_get_knowledge_not_found_error_is_i18n_ready`
+  - `test_get_audit_log_not_found_error_is_i18n_ready`
+- Increased suite size from **400** to **402 passing tests**.
+
+### Validation
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **402 passed**
+
+---
+
 ## 2026-02-23 21:54 PST — Bulk-import duplicate conflict i18n contract (skip_duplicates=false) ✅
 
 ### Shipped in this iteration
