@@ -931,3 +931,13 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 08:03 PST — DB index migration safety guards
+
+### Completed
+- Hardened `9a7e1c2d4f10_add_sms_and_timeslot_indexes` migration to be idempotent by adding index existence checks before `create_index` / `drop_index` operations.
+- Added focused regression tests in `tests/test_db_index_migration_safety.py` to verify upgrade only creates missing indexes and downgrade only drops existing ones.
+
+### Validation
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **413 passed**
