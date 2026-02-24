@@ -931,3 +931,16 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 08:48 PST — DB index migration safety (Item #8 iteration)
+
+### Completed
+- Hardened `alembic/versions/bf5cfbb6a13b_add_performance_indexes.py` to be idempotent across partially-indexed environments:
+  - Added `if_not_exists=True` to all `op.create_index(...)` calls in `upgrade()`.
+  - Added `if_exists=True` to all `op.drop_index(...)` calls in `downgrade()`.
+- Added focused regression tests in `tests/test_db_index_migration_safety.py` to assert migration operations always include these safety flags.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **413 passed**
