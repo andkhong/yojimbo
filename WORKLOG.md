@@ -1,5 +1,20 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 17:08 PST — Iteration: inbound call-flow stateless webhook integration coverage ✅
+
+### Shipped in this iteration
+- Expanded full call-flow integration coverage in `tests/test_call_flow_integration.py`:
+  - added `test_inbound_voice_webhook_is_stateless_until_relay_setup`
+  - verifies `/api/twilio/voice` remains transport/TwiML-only and does **not** prematurely persist a `Call` row before ConversationRelay setup
+  - verifies follow-up `/api/twilio/status` for that unknown SID safely remains a no-op (`204`), protecting webhook robustness under out-of-order callbacks
+- Increased suite size from **364** to **365 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **365 passed**
+
+---
+
 ## 2026-02-23 16:49 PST — Iteration: outbound SMS error contract hardening + integration tests ✅
 
 ### Shipped in this iteration

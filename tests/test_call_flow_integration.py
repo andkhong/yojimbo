@@ -191,3 +191,29 @@ async def test_inbound_voice_uses_wss_when_base_url_is_https(client, monkeypatch
     )
     assert resp.status_code == 200
     assert 'url="wss://example.gov/ws/conversation-relay"' in resp.text
+
+
+@pytest.mark.asyncio
+async def test_inbound_voice_webhook_is_stateless_until_relay_setup(client, db):
+    """Inbound voice TwiML generation should not persist calls by itself."""
+    voice_resp = await client.post(
+        "/api/twilio/voice",
+        data={
+            "CallSid": "CA_inbound_full_001",
+            "From": "+15553334444",
+            "To": "+15550002222",
+            "CallStatus": "ringing",
+        },
+    )
+    assert voice_resp.status_code == 200
+
+    rows = (
+        await db.execute(select(Call).where(Call.twilio_call_sid == "CA_inbound_full_001"))
+    ).scalars().all()
+    assert rows == []
+
+    complete_resp = await client.post(
+        "/api/twilio/status",
+        data={"CallSid": "CA_inbound_full_001", "CallStatus": "completed", "CallDuration": "42"},
+    )
+    assert complete_resp.status_code == 204
