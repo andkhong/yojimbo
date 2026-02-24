@@ -1,5 +1,20 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 20:08 PST — Iteration: outbound HTTPS TwiML transport parity integration coverage ✅
+
+### Shipped in this iteration
+- Expanded full call-flow integration coverage in `tests/test_call_flow_integration.py`:
+  - added `test_outbound_voice_uses_wss_when_base_url_is_https`
+  - verifies `POST /api/twilio/voice/outbound` emits secure `wss://` ConversationRelay URL when `settings.base_url` is HTTPS
+- This closes a transport-parity gap where inbound HTTPS TwiML was covered, but outbound HTTPS TwiML was not.
+- Increased suite size from **386** to **387 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **387 passed**
+
+---
+
 ## 2026-02-23 19:26 PST — Iteration: users API i18n-ready error contracts + coverage expansion ✅
 
 ### Shipped in this iteration

@@ -194,6 +194,19 @@ async def test_inbound_voice_uses_wss_when_base_url_is_https(client, monkeypatch
 
 
 @pytest.mark.asyncio
+async def test_outbound_voice_uses_wss_when_base_url_is_https(client, monkeypatch):
+    """Outbound voice TwiML should use secure WebSocket when base URL is HTTPS."""
+    monkeypatch.setattr(settings, "base_url", "https://example.gov")
+
+    resp = await client.post(
+        "/api/twilio/voice/outbound",
+        data={"CallSid": "CA_https_out_123"},
+    )
+    assert resp.status_code == 200
+    assert 'url="wss://example.gov/ws/conversation-relay"' in resp.text
+
+
+@pytest.mark.asyncio
 async def test_inbound_voice_webhook_is_stateless_until_relay_setup(client, db):
     """Inbound voice TwiML generation should not persist calls by itself."""
     voice_resp = await client.post(
