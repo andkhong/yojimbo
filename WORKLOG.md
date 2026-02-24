@@ -1,3 +1,21 @@
+## 2026-02-23 21:36 PST — Bulk-import empty-payload i18n error contract + coverage ✅
+
+### Shipped in this iteration
+- Improved bulk appointment import validation in `app/api/appointments.py`:
+  - `POST /api/appointments/import` now rejects empty `appointments` arrays with HTTP 422
+  - returns i18n-ready structured `detail` payload:
+    - `message_key`: `appointments.import.empty`
+    - `params.field`: `appointments`
+- Added regression coverage in `tests/test_new_features.py`:
+  - `test_bulk_import_empty_payload_is_i18n_ready`
+- Increased suite size from **396** to **397 passing tests**.
+
+### Validation
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **397 passed**
+
+---
+
 ## 2026-02-23 21:19 PST — Iteration: auth i18n-ready error contracts + refresh edge coverage ✅
 
 ### Shipped in this iteration

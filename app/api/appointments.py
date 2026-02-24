@@ -272,6 +272,16 @@ async def bulk_import_appointments(
     from app.models.contact import Contact
     from app.models.department import Department
 
+    if not data.appointments:
+        raise HTTPException(
+            status_code=422,
+            detail=_i18n_error(
+                "appointments.import.empty",
+                "At least one appointment row is required",
+                field="appointments",
+            ),
+        )
+
     # Preload contacts and departments for efficiency
     phones = list({r.contact_phone for r in data.appointments})
     dept_codes = list({r.department_code.upper() for r in data.appointments})

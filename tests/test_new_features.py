@@ -682,6 +682,19 @@ async def test_appointment_conflict_error_is_i18n_ready(client, seeded_db):
 
 
 @pytest.mark.asyncio
+async def test_bulk_import_empty_payload_is_i18n_ready(client):
+    """Empty bulk payload should return structured i18n-ready validation detail."""
+    resp = await client.post(
+        "/api/appointments/import",
+        json={"appointments": []},
+    )
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "appointments.import.empty"
+    assert detail["params"]["field"] == "appointments"
+
+
+@pytest.mark.asyncio
 async def test_bulk_import_success(client, db):
     """Bulk import creates appointments for valid rows."""
     contact = Contact(phone_number="+15592220001", name="Bulk Import Test")
