@@ -1,3 +1,20 @@
+## 2026-02-24 06:11 PST — CSP hardening: block object embeds + restrict form targets ✅
+
+### Shipped in this iteration
+- Hardened default Content Security Policy in `app/middleware/security_headers.py` by adding:
+  - `object-src 'none'` (blocks plugin/object/embed execution paths)
+  - `form-action 'self'` (prevents cross-origin form POST targets)
+- Added focused regression coverage in `tests/test_new_features.py`:
+  - `test_security_headers_csp_disables_object_embeds_and_limits_forms`
+- Kept scope to a single concern (CSP hardening only) with **2 files changed**.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **412 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
