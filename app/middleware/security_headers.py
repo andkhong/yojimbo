@@ -108,6 +108,21 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
     @staticmethod
+    def _append_vary_headers(response: Response, values: list[str]) -> None:
+        """Append values to Vary while preserving existing entries and order."""
+        existing_vary = response.headers.get("Vary", "")
+        vary_parts = [part.strip() for part in existing_vary.split(",") if part.strip()]
+        seen = {part.lower() for part in vary_parts}
+
+        for value in values:
+            if value.lower() not in seen:
+                vary_parts.append(value)
+                seen.add(value.lower())
+
+        if vary_parts:
+            response.headers["Vary"] = ", ".join(vary_parts)
+
+    @staticmethod
     def _add_cors_headers(
         response: Response,
         origin: str,
@@ -133,15 +148,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "Authorization, Content-Type, X-Requested-With"
             )
             response.headers["Access-Control-Max-Age"] = "3600"
-            # Ensure shared caches vary CORS decisions by request Origin.
-            existing_vary = response.headers.get("Vary", "")
-            if existing_vary:
-                vary_parts = [part.strip() for part in existing_vary.split(",") if part.strip()]
-                if "Origin" not in vary_parts:
-                    vary_parts.append("Origin")
-                response.headers["Vary"] = ", ".join(vary_parts)
-            else:
-                response.headers["Vary"] = "Origin"
+            # Ensure shared caches vary CORS decisions by request Origin and
+            # preflight negotiation headers.
+            SecurityHeadersMiddleware._append_vary_headers(
+                response,
+                [
+                    "Origin",
+                    "Access-Control-Request-Method",
+                    "Access-Control-Request-Headers",
+                ],
+            )
 
     @staticmethod
     def _add_security_headers(response: Response, is_debug: bool) -> None:
