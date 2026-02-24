@@ -33,6 +33,7 @@ _CSP = (
     "img-src 'self' data: https:; "
     "connect-src 'self' https://api.twilio.com wss: ws:; "
     "frame-ancestors 'none'; "
+    "object-src 'none'; "
     "base-uri 'self';"
 )
 
