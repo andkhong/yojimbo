@@ -739,3 +739,20 @@ Low priority polish (all major features done):
 ### Validation
 - `ruff check app/ tests/ --fix` ✅
 - `pytest -q` ✅ **390 passed**
+
+## 2026-02-23 20:51 PST — Dashboard WebSocket server heartbeat hardening (reconnection support)
+
+### Completed
+- Expanded Item #10 (WebSocket reconnection handling) on the **server side** for dashboard clients:
+  - Added periodic server-originated heartbeat pings in `app/ws/dashboard.py` via `_ping_loop`.
+  - `handle_dashboard_ws` now starts/stops a ping task per connection and cancels it cleanly on exit.
+  - Added explicit handling for client-side `pong` messages (no-op today, forward-compatible for future last-seen tracking).
+  - Preserved existing `ping -> pong` response behavior for backward compatibility.
+- Added focused tests in `tests/test_dashboard_ws.py`:
+  - `test_dashboard_ws_handles_ping_and_invalid_json`
+  - `test_dashboard_ws_disconnects_manager_on_socket_disconnect`
+- Net effect: dashboard clients can now rely on both **client-originated** and **server-originated** heartbeat signals to detect stale connections and trigger reconnect logic faster.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **392 passed**
