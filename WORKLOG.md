@@ -931,3 +931,20 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 02:17 PST — Departments bulk-slot invalid time-range i18n error contract ✅
+
+### Shipped in this iteration
+- Hardened `POST /api/departments/{department_id}/slots/bulk` validation in `app/api/departments.py`:
+  - added explicit guard for invalid windows where `start_time >= end_time`
+  - returns HTTP 422 with structured i18n-ready detail:
+    - `message_key`: `departments.time_slot.invalid_time_range`
+    - `params`: `start_time`, `end_time`
+- Added focused regression test in `tests/test_departments_i18n_errors.py`:
+  - `test_bulk_slot_invalid_time_range_error_is_i18n_ready`
+- Suite remains green at **412 passing tests**.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **412 passed**
