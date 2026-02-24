@@ -1,3 +1,21 @@
+## 2026-02-24 09:24 PST — CSP directive hardening (objects/forms/mixed-content) ✅
+
+### Shipped in this iteration
+- Hardened default CSP in `app/middleware/security_headers.py` by adding:
+  - `form-action 'self'`
+  - `object-src 'none'`
+  - `block-all-mixed-content`
+- Added regression coverage in `tests/test_new_features.py`:
+  - `test_security_headers_csp_denies_objects_and_limits_forms`
+- Kept scope focused to CSP policy tightening only (no CORS behavior changes).
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **412 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
