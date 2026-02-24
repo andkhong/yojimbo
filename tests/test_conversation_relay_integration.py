@@ -148,6 +148,41 @@ async def test_handle_setup_without_caller_phone_skips_preference_row(db, monkey
 
 
 @pytest.mark.asyncio
+async def test_reconnect_with_late_phone_backfills_preference_once(db, monkeypatch):
+    """If initial setup has no phone, later reconnect should create one preference row."""
+
+    async def _noop_notify(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(relay, "async_session_factory", TestSessionFactory)
+    monkeypatch.setattr(relay.notification, "notify_call_started", _noop_notify)
+
+    await relay._handle_setup(
+        {
+            "type": "setup",
+            "callSid": "CA_late_phone_001",
+            "customParameters": {"language": "en"},
+        }
+    )
+    await relay._handle_setup(
+        {
+            "type": "setup",
+            "callSid": "CA_late_phone_001",
+            "from": "+15550000009",
+            "customParameters": {"language": "es"},
+        }
+    )
+
+    pref = (
+        await db.execute(
+            select(CallerPreference).where(CallerPreference.phone_number == "+15550000009")
+        )
+    ).scalar_one()
+    assert pref.call_count == 1
+    assert pref.preferred_language == "es"
+
+
+@pytest.mark.asyncio
 async def test_handle_setup_reconnect_updates_detected_language_without_increment(db, monkeypatch):
     """Reconnect may carry new language hint; call should update language without new count."""
 
@@ -185,6 +220,44 @@ async def test_handle_setup_reconnect_updates_detected_language_without_incremen
         )
     ).scalar_one()
     assert pref.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_reconnect_with_existing_pref_updates_language_without_count_bump(db, monkeypatch):
+    """Late phone reconnect should not increment pre-existing caller preference counts."""
+
+    async def _noop_notify(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(relay, "async_session_factory", TestSessionFactory)
+    monkeypatch.setattr(relay.notification, "notify_call_started", _noop_notify)
+
+    db.add(CallerPreference(phone_number="+15550000010", preferred_language="en", call_count=4))
+    await db.commit()
+
+    await relay._handle_setup(
+        {
+            "type": "setup",
+            "callSid": "CA_late_phone_002",
+            "customParameters": {"language": "en"},
+        }
+    )
+    await relay._handle_setup(
+        {
+            "type": "setup",
+            "callSid": "CA_late_phone_002",
+            "from": "+15550000010",
+            "customParameters": {"language": "fr"},
+        }
+    )
+
+    pref = (
+        await db.execute(
+            select(CallerPreference).where(CallerPreference.phone_number == "+15550000010")
+        )
+    ).scalar_one()
+    assert pref.call_count == 4
+    assert pref.preferred_language == "fr"
 
 
 @pytest.mark.asyncio

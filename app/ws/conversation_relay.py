@@ -273,6 +273,29 @@ async def _handle_setup(message: dict) -> tuple[str | None, int | None, Conversa
             call.detected_language = language
             if not call.started_at:
                 call.started_at = datetime.utcnow()
+
+            # Reconnects should not double-count call volume, but if the initial
+            # setup arrived without a caller number and a later reconnect has one,
+            # backfill caller preference storage for that phone.
+            if caller_phone:
+                pref = (
+                    await db.execute(
+                        select(CallerPreference).where(
+                            CallerPreference.phone_number == caller_phone
+                        )
+                    )
+                ).scalar_one_or_none()
+                if not pref:
+                    pref = CallerPreference(
+                        phone_number=caller_phone,
+                        preferred_language=language,
+                        call_count=1,
+                        last_call_at=datetime.utcnow(),
+                    )
+                    db.add(pref)
+                else:
+                    pref.preferred_language = language
+
             call_id = call.id
         else:
             call = Call(

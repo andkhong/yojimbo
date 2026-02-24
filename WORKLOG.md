@@ -1,5 +1,23 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 18:03 PST — Iteration: reconnect caller-preference backfill hardening + integration coverage ✅
+
+### Shipped in this iteration
+- Improved ConversationRelay reconnect handling in `app/ws/conversation_relay.py`:
+  - when an existing `CallSid` reconnects with a caller phone number that was previously missing, we now backfill `caller_preferences` for that phone
+  - preserves idempotency by **not** double-incrementing counts on reconnect for existing preferences
+  - still updates `preferred_language` on reconnect language hints
+- Added integration coverage in `tests/test_conversation_relay_integration.py`:
+  - `test_reconnect_with_late_phone_backfills_preference_once`
+  - `test_reconnect_with_existing_pref_updates_language_without_count_bump`
+- Increased suite size from **370** to **372 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **372 passed**
+
+---
+
 ## 2026-02-23 17:31 PST — Iteration: bulk-import operating-hours enforcement + coverage ✅
 
 ### Shipped in this iteration
