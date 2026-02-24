@@ -1,5 +1,26 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 16:49 PST — Iteration: outbound SMS error contract hardening + integration tests ✅
+
+### Shipped in this iteration
+- Hardened outbound SMS API failure behavior in `app/api/messages.py`:
+  - replaced ad-hoc `{error: ...}` success-200 fallback with proper `HTTP 502`
+  - added i18n-ready structured error payload contract on failure:
+    - `message_key`: `messages.send.failed`
+    - `message`: English fallback
+    - `params.reason`: upstream Twilio/client exception string
+  - added server-side exception logging for easier production diagnostics
+- Expanded endpoint coverage in `tests/test_appointments_crud.py`:
+  - added success-path test for `POST /api/messages/send` with fake Twilio client
+  - added failure-path contract test asserting `502` + structured `detail` payload
+- Increased suite size from **362** to **364 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **364 passed**
+
+---
+
 ## 2026-02-23 16:22 PST — Iteration: caller preference language persistence + integration coverage ✅
 
 ### Shipped in this iteration

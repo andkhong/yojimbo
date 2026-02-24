@@ -10,6 +10,8 @@ Covers:
 """
 
 from datetime import datetime, timedelta
+import sys
+import types
 
 import pytest
 
@@ -383,6 +385,62 @@ async def test_messages_pagination(client, db):
     resp = await client.get("/api/messages?per_page=3&page=1")
     assert resp.status_code == 200
     assert len(resp.json()["messages"]) == 3
+
+
+class _FakeTwilioMessagesAPI:
+    def create(self, **kwargs):
+        return types.SimpleNamespace(sid="SM_int_out_001")
+
+
+class _FakeTwilioClient:
+    def __init__(self, *args, **kwargs):
+        self.messages = _FakeTwilioMessagesAPI()
+
+
+def _install_fake_twilio(monkeypatch: pytest.MonkeyPatch, client_cls=_FakeTwilioClient) -> None:
+    twilio_mod = types.ModuleType("twilio")
+    twilio_rest_mod = types.ModuleType("twilio.rest")
+    twilio_rest_mod.Client = client_cls
+
+    monkeypatch.setitem(sys.modules, "twilio", twilio_mod)
+    monkeypatch.setitem(sys.modules, "twilio.rest", twilio_rest_mod)
+
+
+@pytest.mark.asyncio
+async def test_send_sms_success(client, monkeypatch):
+    _install_fake_twilio(monkeypatch)
+
+    resp = await client.post(
+        "/api/messages/send",
+        json={"phone_number": "+15556667777", "body": "Test outbound"},
+    )
+    assert resp.status_code == 201
+    payload = resp.json()["message"]
+    assert payload["twilio_message_sid"] == "SM_int_out_001"
+    assert payload["direction"] == "outbound"
+    assert payload["status"] == "sent"
+
+
+@pytest.mark.asyncio
+async def test_send_sms_failure_is_i18n_ready(client, monkeypatch):
+    class _RaisingTwilioClient:
+        def __init__(self, *args, **kwargs):
+            self.messages = self
+
+        def create(self, **kwargs):
+            raise RuntimeError("twilio unavailable")
+
+    _install_fake_twilio(monkeypatch, _RaisingTwilioClient)
+
+    resp = await client.post(
+        "/api/messages/send",
+        json={"phone_number": "+15556667777", "body": "Test outbound"},
+    )
+    assert resp.status_code == 502
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "messages.send.failed"
+    assert detail["message"] == "Failed to send SMS"
+    assert "twilio unavailable" in detail["params"]["reason"]
 
 
 # ===========================================================================
