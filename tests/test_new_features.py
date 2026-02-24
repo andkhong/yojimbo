@@ -99,6 +99,32 @@ async def test_production_requires_explicit_cors_origins(client, monkeypatch):
     assert "strict-transport-security" in resp.headers
 
 
+@pytest.mark.asyncio
+async def test_cors_sets_vary_origin_for_allowed_origin(client, monkeypatch):
+    """Allowed CORS responses include Vary: Origin for cache correctness."""
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://dashboard.city.gov")
+
+    resp = await client.options(
+        "/api/departments",
+        headers={"origin": "https://dashboard.city.gov"},
+    )
+    assert resp.status_code in (200, 204)
+    assert resp.headers.get("access-control-allow-origin") == "https://dashboard.city.gov"
+    assert resp.headers.get("vary") == "Origin"
+
+
+@pytest.mark.asyncio
+async def test_non_cors_request_has_no_vary_origin(client, monkeypatch):
+    """Requests without an Origin header should not emit CORS cache vary headers."""
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://dashboard.city.gov")
+
+    resp = await client.get("/api/health")
+    assert resp.status_code == 200
+    assert "vary" not in resp.headers
+
+
 # ===========================================================================
 # Item 5: Caller Preferences
 # ===========================================================================

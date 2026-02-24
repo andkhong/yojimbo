@@ -1,5 +1,22 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 19:08 PST — Iteration: CORS cache correctness hardening + security coverage ✅
+
+### Shipped in this iteration
+- Hardened CORS middleware cache behavior in `app/middleware/security_headers.py`:
+  - allowed-origin responses now include `Vary: Origin`
+  - prevents shared caches from reusing a CORS-allowed response across different origins
+- Expanded security/CORS edge-case coverage in `tests/test_new_features.py`:
+  - `test_cors_sets_vary_origin_for_allowed_origin`
+  - `test_non_cors_request_has_no_vary_origin`
+- Increased suite size from **376** to **378 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **378 passed**
+
+---
+
 ## 2026-02-23 18:48 PST — Iteration: monitor WebSocket replay-window reconnect hardening ✅
 
 ### Shipped in this iteration

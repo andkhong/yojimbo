@@ -99,6 +99,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "Authorization, Content-Type, X-Requested-With"
             )
             response.headers["Access-Control-Max-Age"] = "3600"
+            # Ensure shared caches vary CORS decisions by request Origin.
+            response.headers["Vary"] = "Origin"
 
     @staticmethod
     def _add_security_headers(response: Response, is_debug: bool) -> None:
