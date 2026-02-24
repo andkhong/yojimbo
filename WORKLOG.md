@@ -1,3 +1,20 @@
+## 2026-02-24 06:24 PST — CORS hardening: API-only scope for middleware + regression test ✅
+
+### Shipped in this iteration
+- Hardened `app/middleware/security_headers.py` to apply CORS handling only to `/api/*` routes:
+  - API preflight (`OPTIONS`) remains supported via middleware shortcut
+  - non-API routes no longer receive API CORS headers
+- Added focused regression coverage in `tests/test_new_features.py`:
+  - `test_cors_not_applied_to_non_api_routes`
+- Suite remains green with **412 passing tests**.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **412 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
