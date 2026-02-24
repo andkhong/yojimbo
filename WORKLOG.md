@@ -1,3 +1,20 @@
+## 2026-02-24 05:56 PST — Idempotent SMS/time-slot index migration guards ✅
+
+### Shipped in this iteration
+- Hardened `alembic/versions/9a7e1c2d4f10_add_sms_and_timeslot_indexes.py` to be safely re-runnable by adding existence checks around index creation/removal.
+- Added migration-local helpers:
+  - `_index_exists(...)`
+  - `_create_index_if_missing(...)`
+  - `_drop_index_if_exists(...)`
+- Applied the helpers to all four indexes in `upgrade()`/`downgrade()` to avoid duplicate-index or missing-index failures on partially migrated environments.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
