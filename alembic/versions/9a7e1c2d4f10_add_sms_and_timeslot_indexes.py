@@ -9,6 +9,7 @@ Create Date: 2026-02-23 19:45:00.000000
 from typing import Sequence, Union
 
 from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "9a7e1c2d4f10"
@@ -17,26 +18,42 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _index_exists(table_name: str, index_name: str) -> bool:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_indexes = inspector.get_indexes(table_name)
+    return any(index.get("name") == index_name for index in existing_indexes)
+
+
+def _create_index_if_missing(index_name: str, table_name: str, columns: list[str]) -> None:
+    if not _index_exists(table_name, index_name):
+        op.create_index(index_name, table_name, columns, unique=False)
+
+
+def _drop_index_if_exists(index_name: str, table_name: str) -> None:
+    if _index_exists(table_name, index_name):
+        op.drop_index(index_name, table_name=table_name)
+
+
 def upgrade() -> None:
     """Upgrade schema."""
-    op.create_index("ix_sms_created", "sms_messages", ["created_at"], unique=False)
-    op.create_index(
-        "ix_sms_contact_created", "sms_messages", ["contact_id", "created_at"], unique=False
+    _create_index_if_missing("ix_sms_created", "sms_messages", ["created_at"])
+    _create_index_if_missing(
+        "ix_sms_contact_created", "sms_messages", ["contact_id", "created_at"]
     )
-    op.create_index(
-        "ix_sms_dept_created", "sms_messages", ["department_id", "created_at"], unique=False
+    _create_index_if_missing(
+        "ix_sms_dept_created", "sms_messages", ["department_id", "created_at"]
     )
-    op.create_index(
+    _create_index_if_missing(
         "ix_time_slots_lookup",
         "time_slots",
         ["department_id", "day_of_week", "is_active", "start_time"],
-        unique=False,
     )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_index("ix_time_slots_lookup", table_name="time_slots")
-    op.drop_index("ix_sms_dept_created", table_name="sms_messages")
-    op.drop_index("ix_sms_contact_created", table_name="sms_messages")
-    op.drop_index("ix_sms_created", table_name="sms_messages")
+    _drop_index_if_exists("ix_time_slots_lookup", "time_slots")
+    _drop_index_if_exists("ix_sms_dept_created", "sms_messages")
+    _drop_index_if_exists("ix_sms_contact_created", "sms_messages")
+    _drop_index_if_exists("ix_sms_created", "sms_messages")
