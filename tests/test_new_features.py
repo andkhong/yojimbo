@@ -126,6 +126,41 @@ async def test_non_cors_request_has_no_vary_origin(client, monkeypatch):
     assert "vary" not in resp.headers
 
 
+@pytest.mark.asyncio
+async def test_cors_allowlist_matches_case_and_default_port_variants(client, monkeypatch):
+    """Production CORS matching should normalize case/default-port variants."""
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "HTTPS://DASHBOARD.CITY.GOV/")
+
+    resp = await client.options(
+        "/api/departments",
+        headers={"origin": "https://dashboard.city.gov:443"},
+    )
+    assert resp.status_code in (200, 204)
+    assert resp.headers.get("access-control-allow-origin") == "https://dashboard.city.gov:443"
+
+
+def test_cors_appends_origin_to_existing_vary_header():
+    """CORS middleware should preserve existing Vary values and append Origin."""
+    from starlette.responses import Response
+
+    from app.middleware.security_headers import SecurityHeadersMiddleware
+
+    resp = Response(status_code=204)
+    resp.headers["Vary"] = "Accept-Encoding"
+
+    SecurityHeadersMiddleware._add_cors_headers(
+        response=resp,
+        origin="https://dashboard.city.gov",
+        is_debug=False,
+        allowed_origins=["https://dashboard.city.gov"],
+    )
+
+    vary = resp.headers.get("vary", "")
+    assert "Accept-Encoding" in vary
+    assert "Origin" in vary
+
+
 # ===========================================================================
 # Item 5: Caller Preferences
 # ===========================================================================

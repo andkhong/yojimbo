@@ -18,6 +18,7 @@ Defaults to '*' in debug mode, locked to explicit origins in production.
 
 import logging
 import os
+from urllib.parse import urlparse
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
@@ -42,11 +43,43 @@ _REFERRER = "strict-origin-when-cross-origin"
 _PERMISSIONS = "geolocation=(), microphone=(), camera=(), payment=()"
 
 
+def _normalize_origin(origin: str) -> str:
+    """Normalize origin values for robust CORS allowlist matching.
+
+    - trims whitespace
+    - lowercases scheme/host
+    - strips default ports (:80 for http, :443 for https)
+    - strips trailing slash
+    """
+    candidate = origin.strip().rstrip("/")
+    if not candidate:
+        return ""
+
+    parsed = urlparse(candidate)
+    scheme = (parsed.scheme or "").lower()
+    host = (parsed.hostname or "").lower()
+    if not scheme or not host:
+        return ""
+
+    port = parsed.port
+    is_default_port = (scheme == "http" and port == 80) or (scheme == "https" and port == 443)
+
+    if port and not is_default_port:
+        return f"{scheme}://{host}:{port}"
+    return f"{scheme}://{host}"
+
+
 def _get_allowed_origins() -> list[str]:
     raw = os.getenv("CORS_ALLOWED_ORIGINS", "")
     if not raw:
         return []
-    return [o.strip() for o in raw.split(",") if o.strip()]
+
+    normalized: list[str] = []
+    for origin in raw.split(","):
+        candidate = _normalize_origin(origin)
+        if candidate and candidate not in normalized:
+            normalized.append(candidate)
+    return normalized
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -84,10 +117,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         """Add CORS headers based on debug mode and configured origins."""
         # Debug mode stays permissive for local/dev workflows.
         # Production requires explicit allowlist membership.
+        normalized_origin = _normalize_origin(origin)
         if is_debug:
             allow_origin = True
         else:
-            allow_origin = bool(allowed_origins) and origin in allowed_origins
+            allow_origin = bool(allowed_origins) and normalized_origin in allowed_origins
 
         if allow_origin:
             response.headers["Access-Control-Allow-Origin"] = origin
@@ -100,7 +134,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             )
             response.headers["Access-Control-Max-Age"] = "3600"
             # Ensure shared caches vary CORS decisions by request Origin.
-            response.headers["Vary"] = "Origin"
+            existing_vary = response.headers.get("Vary", "")
+            if existing_vary:
+                vary_parts = [part.strip() for part in existing_vary.split(",") if part.strip()]
+                if "Origin" not in vary_parts:
+                    vary_parts.append("Origin")
+                response.headers["Vary"] = ", ".join(vary_parts)
+            else:
+                response.headers["Vary"] = "Origin"
 
     @staticmethod
     def _add_security_headers(response: Response, is_debug: bool) -> None:

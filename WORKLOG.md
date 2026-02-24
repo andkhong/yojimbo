@@ -669,3 +669,23 @@ Low priority polish (all major features done):
 ### Validation
 - `ruff check app/ tests/ --fix` ✅
 - `pytest -q` ✅ **384 passed**
+
+## 2026-02-23 19:49 PST — CORS normalization hardening + cache-safe Vary merge
+
+### Completed
+- Strengthened CORS allowlist matching in `SecurityHeadersMiddleware` (Item #9 iteration):
+  - Added origin normalization utility for both config allowlist entries and incoming `Origin` headers.
+  - Matching now tolerates common real-world variants without loosening policy:
+    - case differences in scheme/host
+    - trailing slash in configured origins
+    - explicit default ports (`:80`, `:443`)
+  - Still enforces exact scheme+host(+non-default-port) in production.
+- Improved response cache safety when CORS applies:
+  - `Vary` header now appends `Origin` without clobbering existing `Vary` values.
+- Added focused regression tests:
+  - `test_cors_allowlist_matches_case_and_default_port_variants`
+  - `test_cors_appends_origin_to_existing_vary_header`
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **386 passed**
