@@ -575,3 +575,21 @@ Low priority polish (all major features done):
 ### Validation
 - `ruff check app/ tests/ --fix` ✅
 - `pytest -q` ✅ **373 passed**
+
+## 2026-02-23 18:36 PST — SMS send configuration guardrails + i18n-ready error payload
+
+### Completed
+- Improved outbound SMS endpoint error handling (Item #3 iteration):
+  - Added explicit Twilio configuration validation in `POST /api/messages/send`.
+  - Endpoint now returns HTTP 503 with structured i18n detail when required settings are missing:
+    - `message_key`: `messages.send.not_configured`
+    - `params.missing_fields`: one or more of `twilio_account_sid`, `twilio_auth_token`, `twilio_phone_number`
+  - Existing downstream failure path remains HTTP 502 with:
+    - `message_key`: `messages.send.failed`
+- Expanded message endpoint tests:
+  - Added `test_send_sms_not_configured_is_i18n_ready`
+  - Updated success/failure Twilio tests to explicitly patch configured credentials before exercising provider behavior.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **374 passed**

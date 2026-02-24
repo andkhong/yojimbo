@@ -59,6 +59,24 @@ async def send_sms(
     db: AsyncSession = Depends(get_db),
 ):
     """Send an outbound SMS via Twilio."""
+    missing_fields: list[str] = []
+    if not settings.twilio_account_sid:
+        missing_fields.append("twilio_account_sid")
+    if not settings.twilio_auth_token:
+        missing_fields.append("twilio_auth_token")
+    if not settings.twilio_phone_number:
+        missing_fields.append("twilio_phone_number")
+
+    if missing_fields:
+        raise HTTPException(
+            status_code=503,
+            detail=_localized_error(
+                "messages.send.not_configured",
+                "SMS service is not configured",
+                missing_fields=missing_fields,
+            ),
+        )
+
     try:
         from twilio.rest import Client
 

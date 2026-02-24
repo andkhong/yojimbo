@@ -425,8 +425,24 @@ def _install_fake_twilio(monkeypatch: pytest.MonkeyPatch, client_cls=_FakeTwilio
 
 
 @pytest.mark.asyncio
+async def test_send_sms_not_configured_is_i18n_ready(client):
+    resp = await client.post(
+        "/api/messages/send",
+        json={"phone_number": "+15556667777", "body": "Test outbound"},
+    )
+    assert resp.status_code == 503
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "messages.send.not_configured"
+    assert detail["message"] == "SMS service is not configured"
+    assert "twilio_account_sid" in detail["params"]["missing_fields"]
+
+
+@pytest.mark.asyncio
 async def test_send_sms_success(client, monkeypatch):
     _install_fake_twilio(monkeypatch)
+    monkeypatch.setattr("app.api.messages.settings.twilio_account_sid", "AC_test")
+    monkeypatch.setattr("app.api.messages.settings.twilio_auth_token", "auth_test")
+    monkeypatch.setattr("app.api.messages.settings.twilio_phone_number", "+15550000000")
 
     resp = await client.post(
         "/api/messages/send",
@@ -449,6 +465,9 @@ async def test_send_sms_failure_is_i18n_ready(client, monkeypatch):
             raise RuntimeError("twilio unavailable")
 
     _install_fake_twilio(monkeypatch, _RaisingTwilioClient)
+    monkeypatch.setattr("app.api.messages.settings.twilio_account_sid", "AC_test")
+    monkeypatch.setattr("app.api.messages.settings.twilio_auth_token", "auth_test")
+    monkeypatch.setattr("app.api.messages.settings.twilio_phone_number", "+15550000000")
 
     resp = await client.post(
         "/api/messages/send",
