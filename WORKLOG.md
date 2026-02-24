@@ -931,3 +931,16 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 07:49 PST — CSP hardening: block object/embed execution
+
+### Completed
+- Hardened CSP in `app/middleware/security_headers.py` by adding:
+  - `object-src 'none'` to disable plugin/object/embed execution.
+  - `form-action 'self'` to restrict form submissions to same-origin.
+- Added coverage in `tests/test_new_features.py` to assert both directives are present in API response CSP headers.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
