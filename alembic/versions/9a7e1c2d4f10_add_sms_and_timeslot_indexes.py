@@ -19,24 +19,39 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.create_index("ix_sms_created", "sms_messages", ["created_at"], unique=False)
     op.create_index(
-        "ix_sms_contact_created", "sms_messages", ["contact_id", "created_at"], unique=False
+        "ix_sms_created",
+        "sms_messages",
+        ["created_at"],
+        unique=False,
+        if_not_exists=True,
     )
     op.create_index(
-        "ix_sms_dept_created", "sms_messages", ["department_id", "created_at"], unique=False
+        "ix_sms_contact_created",
+        "sms_messages",
+        ["contact_id", "created_at"],
+        unique=False,
+        if_not_exists=True,
+    )
+    op.create_index(
+        "ix_sms_dept_created",
+        "sms_messages",
+        ["department_id", "created_at"],
+        unique=False,
+        if_not_exists=True,
     )
     op.create_index(
         "ix_time_slots_lookup",
         "time_slots",
         ["department_id", "day_of_week", "is_active", "start_time"],
         unique=False,
+        if_not_exists=True,
     )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_index("ix_time_slots_lookup", table_name="time_slots")
-    op.drop_index("ix_sms_dept_created", table_name="sms_messages")
-    op.drop_index("ix_sms_contact_created", table_name="sms_messages")
-    op.drop_index("ix_sms_created", table_name="sms_messages")
+    op.drop_index("ix_time_slots_lookup", table_name="time_slots", if_exists=True)
+    op.drop_index("ix_sms_dept_created", table_name="sms_messages", if_exists=True)
+    op.drop_index("ix_sms_contact_created", table_name="sms_messages", if_exists=True)
+    op.drop_index("ix_sms_created", table_name="sms_messages", if_exists=True)

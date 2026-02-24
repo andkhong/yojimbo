@@ -931,3 +931,15 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 00:48 PST — DB index migration safety (idempotent index DDL)
+
+### Completed
+- Hardened `alembic/versions/9a7e1c2d4f10_add_sms_and_timeslot_indexes.py` for safer re-runs in drifted environments.
+- Added `if_not_exists=True` to all `op.create_index(...)` calls in the migration upgrade step.
+- Added `if_exists=True` to all `op.drop_index(...)` calls in the migration downgrade step.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
