@@ -931,3 +931,18 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-23 23:36 PST — Calls outbound failure i18n contract hardening
+
+### Completed
+- Updated `POST /api/calls/outbound` failure path in `app/api/calls.py` to return a structured i18n-ready error payload instead of a raw `{"error": ...}` body.
+- Failures now raise `HTTPException(502)` with:
+  - `message_key`: `calls.outbound.failed`
+  - `message`: `Failed to initiate outbound call`
+  - `params.reason`: upstream exception text
+- Added regression test `test_outbound_call_create_failure_is_i18n_ready` in `tests/test_call_flow_integration.py` to lock the contract.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **412 passed**

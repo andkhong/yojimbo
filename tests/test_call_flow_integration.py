@@ -24,6 +24,11 @@ class _FakeCallsApi:
         return types.SimpleNamespace(sid="CA_int_test_123")
 
 
+class _FailingCallsApi:
+    def create(self, **kwargs):
+        raise RuntimeError("twilio outage")
+
+
 class _FakeTwilioClient:
     def __init__(self, *args, **kwargs):
         self.calls = _FakeCallsApi()
@@ -34,6 +39,21 @@ def _install_fake_twilio(monkeypatch: pytest.MonkeyPatch) -> None:
     twilio_mod = types.ModuleType("twilio")
     twilio_rest_mod = types.ModuleType("twilio.rest")
     twilio_rest_mod.Client = _FakeTwilioClient
+
+    monkeypatch.setitem(sys.modules, "twilio", twilio_mod)
+    monkeypatch.setitem(sys.modules, "twilio.rest", twilio_rest_mod)
+
+
+def _install_failing_twilio(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Install fake twilio.rest module whose call creation always fails."""
+
+    class _FailingTwilioClient:
+        def __init__(self, *args, **kwargs):
+            self.calls = _FailingCallsApi()
+
+    twilio_mod = types.ModuleType("twilio")
+    twilio_rest_mod = types.ModuleType("twilio.rest")
+    twilio_rest_mod.Client = _FailingTwilioClient
 
     monkeypatch.setitem(sys.modules, "twilio", twilio_mod)
     monkeypatch.setitem(sys.modules, "twilio.rest", twilio_rest_mod)
@@ -77,6 +97,23 @@ async def test_outbound_call_status_callback_end_to_end(client, db, monkeypatch)
     row = (await db.execute(select(Call).where(Call.id == call_id))).scalar_one()
     assert row.status == "completed"
     assert row.duration_seconds == 87
+
+
+@pytest.mark.asyncio
+async def test_outbound_call_create_failure_is_i18n_ready(client, monkeypatch):
+    """Twilio failures during outbound create return structured i18n error payloads."""
+    _install_failing_twilio(monkeypatch)
+
+    resp = await client.post(
+        "/api/calls/outbound",
+        json={"phone_number": "+15551230000", "department_id": 2, "language": "en"},
+    )
+
+    assert resp.status_code == 502
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "calls.outbound.failed"
+    assert detail["message"] == "Failed to initiate outbound call"
+    assert detail["params"]["reason"] == "twilio outage"
 
 
 @pytest.mark.asyncio
@@ -256,8 +293,10 @@ async def test_inbound_voice_webhook_is_stateless_until_relay_setup(client, db):
     assert voice_resp.status_code == 200
 
     rows = (
-        await db.execute(select(Call).where(Call.twilio_call_sid == "CA_inbound_full_001"))
-    ).scalars().all()
+        (await db.execute(select(Call).where(Call.twilio_call_sid == "CA_inbound_full_001")))
+        .scalars()
+        .all()
+    )
     assert rows == []
 
     complete_resp = await client.post(
