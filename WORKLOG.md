@@ -1,5 +1,23 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 16:03 PST — Iteration: overnight status-page operating-hours enforcement ✅
+
+### Shipped in this iteration
+- Improved public status department availability logic in `app/api/status.py`:
+  - `_dept_is_open(...)` now supports overnight operating windows (e.g. `22:00 -> 02:00`)
+  - correctly handles both same-day late-night checks and previous-day spillover after midnight
+  - preserves closed-state behavior when no matching window applies
+- Added focused regression tests in `tests/test_new_features.py`:
+  - validates overnight open state on start day (`23:30`)
+  - validates post-midnight spillover open (`01:30`) and closed cutoff (`02:15`)
+- Increased suite size from **359** to **361 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **361 passed**
+
+---
+
 ## 2026-02-23 15:56 PST — Iteration: production CORS allowlist enforcement + security coverage ✅
 
 ### Shipped in this iteration

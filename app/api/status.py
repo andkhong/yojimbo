@@ -42,27 +42,52 @@ def _parse_hours(hours_str: str | None) -> dict | None:
 
 
 def _dept_is_open(dept: Department, now: datetime) -> bool | None:
-    """Return True/False if department is open now, or None if unknown."""
+    """Return True/False if department is open now, or None if unknown.
+
+    Supports same-day windows (09:00-17:00) and overnight windows
+    (22:00-02:00) by checking current and previous day windows.
+    """
     hours = _parse_hours(dept.operating_hours)
     if not hours:
-        return None  # No hours configured — assume open
+        return None  # No hours configured — unknown
 
     day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-    day_key = day_names[now.weekday()]
-    day_hours = hours.get(day_key)
 
-    if not day_hours:
-        return False  # No hours for today = closed
+    def _parse_window(day_key: str) -> tuple[int, int] | None:
+        day_hours = hours.get(day_key)
+        if not day_hours:
+            return None
+        try:
+            open_h, open_m = map(int, day_hours.get("open", "09:00").split(":"))
+            close_h, close_m = map(int, day_hours.get("close", "17:00").split(":"))
+            return open_h * 60 + open_m, close_h * 60 + close_m
+        except (ValueError, AttributeError):
+            return None
 
-    try:
-        open_h, open_m = map(int, day_hours.get("open", "09:00").split(":"))
-        close_h, close_m = map(int, day_hours.get("close", "17:00").split(":"))
-        open_mins = open_h * 60 + open_m
-        close_mins = close_h * 60 + close_m
-        current_mins = now.hour * 60 + now.minute
-        return open_mins <= current_mins < close_mins
-    except (ValueError, AttributeError):
-        return None
+    current_mins = now.hour * 60 + now.minute
+    day_idx = now.weekday()
+
+    # 1) Current day window.
+    current_window = _parse_window(day_names[day_idx])
+    if current_window:
+        open_mins, close_mins = current_window
+        if close_mins > open_mins:
+            if open_mins <= current_mins < close_mins:
+                return True
+        else:
+            # Overnight window starting today, e.g. 22:00 -> 02:00.
+            if current_mins >= open_mins:
+                return True
+
+    # 2) Previous day overnight spillover into today.
+    prev_window = _parse_window(day_names[(day_idx - 1) % 7])
+    if prev_window:
+        prev_open, prev_close = prev_window
+        if prev_close <= prev_open and current_mins < prev_close:
+            return True
+
+    # If schedule exists but no window matched, department is closed.
+    return False
 
 
 @router.get(

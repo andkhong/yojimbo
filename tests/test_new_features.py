@@ -324,6 +324,34 @@ async def test_status_no_auth_required(client):
     assert resp.status_code == 200
 
 
+def test_status_dept_open_handles_overnight_window_current_day():
+    """22:00-02:00 schedules should be open late on the start day."""
+    from app.api.status import _dept_is_open
+
+    dept = Department(
+        name="After Hours",
+        code="AH",
+        operating_hours=json.dumps({"monday": {"open": "22:00", "close": "02:00"}}),
+    )
+    # Monday 23:30 should be open.
+    assert _dept_is_open(dept, datetime(2026, 2, 23, 23, 30)) is True
+
+
+def test_status_dept_open_handles_overnight_window_next_day_spillover():
+    """22:00-02:00 schedules should remain open after midnight on next day."""
+    from app.api.status import _dept_is_open
+
+    dept = Department(
+        name="After Hours",
+        code="AH",
+        operating_hours=json.dumps({"monday": {"open": "22:00", "close": "02:00"}}),
+    )
+    # Tuesday 01:30 should still be open due to Monday overnight window.
+    assert _dept_is_open(dept, datetime(2026, 2, 24, 1, 30)) is True
+    # Tuesday 02:15 should be closed.
+    assert _dept_is_open(dept, datetime(2026, 2, 24, 2, 15)) is False
+
+
 # ===========================================================================
 # Item 4: Operating hours enforcement
 # ===========================================================================
