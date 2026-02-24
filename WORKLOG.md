@@ -931,3 +931,8 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 07:02 PST — DB index safety: dedupe caller phone index
+- Removed redundant explicit `ix_caller_pref_phone` model index from `CallerPreference`.
+- Added regression test to ensure `phone_number` keeps exactly one single-column unique index.
+- Validation run: ruff format/check and pytest (`412 passed`).

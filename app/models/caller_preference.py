@@ -7,7 +7,7 @@ the caller confirms or changes preferences.
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -15,7 +15,6 @@ from app.database import Base
 
 class CallerPreference(Base):
     __tablename__ = "caller_preferences"
-    __table_args__ = (Index("ix_caller_pref_phone", "phone_number"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
