@@ -283,9 +283,9 @@ async def bulk_import_appointments(
         )).scalars().all()
     }
     dept_map = {
-        d.code: d
+        d.code.upper(): d
         for d in (await db.execute(
-            select(Department).where(Department.code.in_(dept_codes))
+            select(Department).where(func.upper(Department.code).in_(dept_codes))
         )).scalars().all()
     }
 

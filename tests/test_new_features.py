@@ -739,6 +739,34 @@ async def test_bulk_import_unknown_dept_error(client, db):
 
 
 @pytest.mark.asyncio
+async def test_bulk_import_matches_department_code_case_insensitively(client, db):
+    """Import should resolve department codes even if DB casing differs."""
+    contact = Contact(phone_number="+15592220012")
+    # Simulate legacy/manual seeded code with lowercase value.
+    dept = Department(name="Lowercase Dept", code="lc1")
+    db.add(contact)
+    db.add(dept)
+    await db.flush()
+
+    resp = await client.post(
+        "/api/appointments/import",
+        json={
+            "appointments": [{
+                "contact_phone": "+15592220012",
+                "department_code": "LC1",
+                "title": "Case Insensitive Dept Code",
+                "scheduled_start": "2026-03-13T09:00:00",
+            }],
+        },
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["created"] == 1
+    assert data["errors"] == 0
+
+
+@pytest.mark.asyncio
 async def test_bulk_import_skip_duplicates(client, db):
     """skip_duplicates=True skips existing confirmed appointments."""
     contact = Contact(phone_number="+15592220004")
