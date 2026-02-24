@@ -94,8 +94,9 @@ async def create_appointment(
         raise HTTPException(
             status_code=422,
             detail=_i18n_error(
-                "appointments.outside_operating_hours",
+                getattr(exc, "message_key", "appointments.outside_operating_hours"),
                 str(exc),
+                **getattr(exc, "params", {}),
             ),
         )
     except BookingConflictError as exc:

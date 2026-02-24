@@ -383,6 +383,8 @@ async def test_operating_hours_check_before_open():
     end = datetime(2026, 2, 23, 7, 30)
     with pytest.raises(OutsideOperatingHoursError) as exc_info:
         check_operating_hours(hours_json, start, end)
+    assert exc_info.value.message_key == "appointments.operating_hours.before_open"
+    assert exc_info.value.params["opens_at"] == "09:00"
     assert "opens at" in str(exc_info.value).lower()
 
 
@@ -398,6 +400,8 @@ async def test_operating_hours_check_after_close():
     end = datetime(2026, 2, 23, 17, 30)   # 5:30pm — past close
     with pytest.raises(OutsideOperatingHoursError) as exc_info:
         check_operating_hours(hours_json, start, end)
+    assert exc_info.value.message_key == "appointments.operating_hours.after_close"
+    assert exc_info.value.params["closes_at"] == "17:00"
     assert "closes at" in str(exc_info.value).lower()
 
 
@@ -415,6 +419,8 @@ async def test_operating_hours_closed_day():
     end = datetime(2026, 2, 28, 10, 30)
     with pytest.raises(OutsideOperatingHoursError) as exc_info:
         check_operating_hours(hours_json, start, end)
+    assert exc_info.value.message_key == "appointments.operating_hours.closed_day"
+    assert exc_info.value.params["day"] == "saturday"
     assert "closed" in str(exc_info.value).lower()
 
 
@@ -513,7 +519,8 @@ async def test_booking_enforces_operating_hours_via_api(client, seeded_db):
     )
     assert resp.status_code == 422
     detail = resp.json()["detail"]
-    assert detail["message_key"] == "appointments.outside_operating_hours"
+    assert detail["message_key"] == "appointments.operating_hours.after_close"
+    assert detail["params"]["closes_at"] == "17:00"
     assert "closes" in detail["message"].lower() or "hours" in detail["message"].lower()
 
 

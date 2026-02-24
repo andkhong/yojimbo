@@ -18,7 +18,15 @@ class BookingConflictError(Exception):
 
 
 class OutsideOperatingHoursError(Exception):
-    """Raised when appointment time is outside department operating hours."""
+    """Raised when appointment time is outside department operating hours.
+
+    Provides i18n-ready metadata while still rendering a human-readable message.
+    """
+
+    def __init__(self, message_key: str, message: str, **params):
+        super().__init__(message)
+        self.message_key = message_key
+        self.params = params
 
 
 # Day index → key used in operating_hours JSON
@@ -128,7 +136,9 @@ def check_operating_hours(
 
     if not day_window:
         raise OutsideOperatingHoursError(
-            f"The department is closed on {day_key.capitalize()}."
+            "appointments.operating_hours.closed_day",
+            f"The department is closed on {day_key.capitalize()}.",
+            day=day_key,
         )
 
     open_time, close_time = day_window
@@ -141,13 +151,21 @@ def check_operating_hours(
 
     if scheduled_start < open_dt:
         raise OutsideOperatingHoursError(
+            "appointments.operating_hours.before_open",
             f"Appointment starts at {scheduled_start.strftime('%H:%M')} but the department "
-            f"opens at {open_time.strftime('%H:%M')} on {day_key.capitalize()}."
+            f"opens at {open_time.strftime('%H:%M')} on {day_key.capitalize()}.",
+            day=day_key,
+            opens_at=open_time.strftime('%H:%M'),
+            starts_at=scheduled_start.strftime('%H:%M'),
         )
     if scheduled_end > close_dt:
         raise OutsideOperatingHoursError(
+            "appointments.operating_hours.after_close",
             f"Appointment ends at {scheduled_end.strftime('%H:%M')} but the department "
-            f"closes at {close_time.strftime('%H:%M')} on {day_key.capitalize()}."
+            f"closes at {close_time.strftime('%H:%M')} on {day_key.capitalize()}.",
+            day=day_key,
+            closes_at=close_time.strftime('%H:%M'),
+            ends_at=scheduled_end.strftime('%H:%M'),
         )
 
 

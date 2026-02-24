@@ -442,3 +442,19 @@ Low priority polish (all major features done):
 - `ruff check app/ tests/ --fix` ✅
 - `pytest -q` ✅ **355 passed**
 
+
+## 2026-02-23 16:32 PST — i18n-ready operating-hours errors (structured keys + params)
+
+### Completed
+- Enhanced `OutsideOperatingHoursError` with i18n metadata:
+  - Added `message_key` and `params` fields while preserving readable fallback text.
+  - Introduced granular keys:
+    - `appointments.operating_hours.before_open`
+    - `appointments.operating_hours.after_close`
+    - `appointments.operating_hours.closed_day`
+- Updated appointment API error handling (`POST /api/appointments`) to surface these structured keys/params directly in `detail` payloads.
+- Expanded tests to validate structured metadata for operating-hours failures (service-level + API-level assertions).
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **362 passed**
