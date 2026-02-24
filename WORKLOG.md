@@ -1,3 +1,21 @@
+## 2026-02-24 04:08 PST — Scope CORS handling to /api/* endpoints only ✅
+
+### Shipped in this iteration
+- Hardened `app/middleware/security_headers.py` so CORS logic now applies only to `/api/*` routes:
+  - preflight short-circuit (`OPTIONS` + `Origin`) now only triggers on API paths
+  - CORS response headers are no longer added to non-API HTML/UI routes
+- Added focused regression coverage in `tests/test_new_features.py`:
+  - `test_cors_headers_not_added_on_non_api_paths`
+  - `test_options_non_api_path_not_short_circuited_by_cors_preflight`
+- Kept security headers behavior unchanged for all responses.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **413 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
