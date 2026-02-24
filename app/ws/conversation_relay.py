@@ -202,6 +202,10 @@ async def _handle_setup(message: dict) -> tuple[str | None, int | None, Conversa
     custom_params = message.get("customParameters", {})
     language = custom_params.get("language", "en")
 
+    if not call_sid:
+        logger.warning("ConversationRelay setup missing callSid; skipping session init")
+        return None, None, None
+
     logger.info("ConversationRelay setup: CallSid=%s, From=%s", call_sid, caller_phone)
 
     async with async_session_factory() as db:

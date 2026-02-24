@@ -1,5 +1,22 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 20:18 PST — Iteration: ConversationRelay invalid setup reconnect-guard + integration coverage ✅
+
+### Shipped in this iteration
+- Hardened WebSocket setup handling in `app/ws/conversation_relay.py`:
+  - `_handle_setup(...)` now treats missing/empty `callSid` as invalid setup and safely no-ops
+  - avoids creating/overwriting `Call` rows under empty SID values on malformed reconnect/setup payloads
+- Expanded reconnection/error-path integration coverage in `tests/test_conversation_relay_integration.py`:
+  - `test_handle_setup_without_callsid_is_noop`
+  - `test_conversation_relay_missing_callsid_drops_subsequent_prompt`
+- Increased suite size from **387** to **389 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **389 passed**
+
+---
+
 ## 2026-02-23 20:08 PST — Iteration: outbound HTTPS TwiML transport parity integration coverage ✅
 
 ### Shipped in this iteration

@@ -120,6 +120,62 @@ async def test_conversation_relay_flow_completes_call_and_tracks_preferences(db,
 
 
 @pytest.mark.asyncio
+async def test_conversation_relay_missing_callsid_drops_subsequent_prompt(db, monkeypatch):
+    """A setup frame without callSid should not create an active session."""
+
+    async def _noop_notify(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(relay, "async_session_factory", TestSessionFactory)
+    monkeypatch.setattr(relay.notification, "notify_call_started", _noop_notify)
+    monkeypatch.setattr(relay.notification, "notify_call_ended", _noop_notify)
+    monkeypatch.setattr(relay.notification, "notify_call_transcript", _noop_notify)
+
+    ws = _FakeWebSocket(
+        [
+            {
+                "type": "setup",
+                "from": "+15550000077",
+                "customParameters": {"language": "en"},
+            },
+            {"type": "prompt", "voicePrompt": "hello", "lang": "en-US"},
+        ]
+    )
+
+    await relay.handle_conversation_relay(ws)
+
+    assert ws.sent == []
+    calls = (await db.execute(select(Call))).scalars().all()
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_handle_setup_without_callsid_is_noop(db, monkeypatch):
+    """Setup without callSid should be ignored and should not persist call state."""
+
+    async def _noop_notify(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(relay, "async_session_factory", TestSessionFactory)
+    monkeypatch.setattr(relay.notification, "notify_call_started", _noop_notify)
+
+    sid, call_id, session = await relay._handle_setup(
+        {
+            "type": "setup",
+            "from": "+15550000999",
+            "customParameters": {"language": "en"},
+        }
+    )
+
+    assert sid is None
+    assert call_id is None
+    assert session is None
+
+    calls = (await db.execute(select(Call))).scalars().all()
+    assert calls == []
+
+
+@pytest.mark.asyncio
 async def test_handle_setup_without_caller_phone_skips_preference_row(db, monkeypatch):
     """Anonymous/missing phone setup should still create call but not preference row."""
 
