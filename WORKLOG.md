@@ -931,3 +931,18 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 07:32 PST — CSP hardening: disallow plugin/frame content vectors
+
+### Completed
+- Tightened baseline `Content-Security-Policy` in `app/middleware/security_headers.py` by adding:
+  - `object-src 'none'`
+  - `frame-src 'none'`
+  - `base-uri 'none'` (was `'self'`)
+  - `form-action 'self'`
+- Added regression coverage in `tests/test_new_features.py` to assert these hardening directives are present on API responses.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅
