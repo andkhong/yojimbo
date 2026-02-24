@@ -1,3 +1,21 @@
+## 2026-02-24 05:17 PST — CORS hardening: API-only origin handling ✅
+
+### Shipped in this iteration
+- Tightened `SecurityHeadersMiddleware` so CORS processing is now limited to `/api/*` routes:
+  - preflight `OPTIONS` shortcut (`204`) runs only for API paths
+  - CORS response headers are emitted only on API responses
+- Added focused regression coverage in `tests/test_new_features.py`:
+  - `test_cors_headers_not_applied_to_non_api_paths`
+  - `test_options_non_api_path_does_not_use_cors_preflight_shortcut`
+- Increased suite size from **411** to **413 passing tests**.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **413 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
