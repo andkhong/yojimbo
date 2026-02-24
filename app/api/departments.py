@@ -522,6 +522,17 @@ async def bulk_generate_slots(
 
     await _get_dept_or_404(department_id, db)
 
+    if data.start_time >= data.end_time:
+        raise HTTPException(
+            status_code=422,
+            detail=_localized_error(
+                "departments.time_slot.invalid_time_range",
+                "Invalid time range. start_time must be before end_time.",
+                start_time=data.start_time.isoformat(),
+                end_time=data.end_time.isoformat(),
+            ),
+        )
+
     created = []
     for day in data.days_of_week:
         if day < 0 or day > 6:
