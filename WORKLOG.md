@@ -1,3 +1,17 @@
+## 2026-02-24 05:08 PST — Alembic index migration idempotency hardening ✅
+
+### Shipped in this iteration
+- Hardened `alembic/versions/9a7e1c2d4f10_add_sms_and_timeslot_indexes.py` for safer re-runs/partial states.
+- Added `if_not_exists=True` to all four `op.create_index(...)` calls in `upgrade()`.
+- Added `if_exists=True` to all four `op.drop_index(...)` calls in `downgrade()`.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
