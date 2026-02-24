@@ -16,6 +16,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.models.call import Call
+from app.models.caller_preference import CallerPreference
 
 
 class _FakeCallsApi:
@@ -230,3 +231,64 @@ async def test_inbound_voice_webhook_is_stateless_until_relay_setup(client, db):
         data={"CallSid": "CA_inbound_full_001", "CallStatus": "completed", "CallDuration": "42"},
     )
     assert complete_resp.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_outbound_call_flow_can_track_returning_caller_preference(client, db, monkeypatch):
+    """Cross-endpoint flow: call lifecycle + per-caller preference persistence."""
+    _install_fake_twilio(monkeypatch)
+
+    phone = "+15554443333"
+
+    # Seed caller preferences before call
+    pref_seed = await client.put(
+        "/api/preferences/%2B15554443333",
+        json={
+            "preferred_language": "es",
+            "name": "María García",
+            "sms_opt_in": True,
+            "preferred_reminder_hours": 48,
+        },
+    )
+    assert pref_seed.status_code == 200
+
+    # Place outbound call and complete it
+    create_resp = await client.post(
+        "/api/calls/outbound",
+        json={"phone_number": phone, "department_id": 2, "language": "es"},
+    )
+    assert create_resp.status_code == 201
+
+    call_id = create_resp.json()["call"]["id"]
+
+    status_resp = await client.post(
+        "/api/twilio/status",
+        data={"CallSid": "CA_int_test_123", "CallStatus": "completed", "CallDuration": "31"},
+    )
+    assert status_resp.status_code == 204
+
+    # Track the same caller as a returning caller
+    inc_resp = await client.post("/api/preferences/%2B15554443333/increment-call")
+    assert inc_resp.status_code == 200
+    assert inc_resp.json()["call_count"] == 1
+
+    # Caller profile fields should remain intact after call-count update
+    fetch_pref = await client.get("/api/preferences/%2B15554443333")
+    assert fetch_pref.status_code == 200
+    pref = fetch_pref.json()["preference"]
+    assert pref["name"] == "María García"
+    assert pref["preferred_language"] == "es"
+    assert pref["preferred_reminder_hours"] == 48
+    assert pref["call_count"] == 1
+
+    # Ensure call persisted as completed in DB
+    row = (await db.execute(select(Call).where(Call.id == call_id))).scalar_one()
+    assert row.status == "completed"
+    assert row.duration_seconds == 31
+
+    # Ensure preference row persisted in DB for same phone
+    pref_row = (
+        await db.execute(select(CallerPreference).where(CallerPreference.phone_number == phone))
+    ).scalar_one()
+    assert pref_row.call_count == 1
+    assert pref_row.preferred_language == "es"

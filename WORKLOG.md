@@ -721,3 +721,21 @@ Low priority polish (all major features done):
 ### Validation
 - `ruff check app/ tests/ --fix` ✅
 - `pytest -q` ✅ **386 passed**
+
+## 2026-02-23 20:33 PST — Full call-flow integration test for caller preference persistence
+
+### Completed
+- Expanded Item #2 (integration tests for full call flow) with a cross-endpoint integration scenario in `tests/test_call_flow_integration.py`:
+  - Added `test_outbound_call_flow_can_track_returning_caller_preference`.
+  - Flow now validates, end-to-end:
+    1. Seed caller preference via `PUT /api/preferences/{phone}`
+    2. Create outbound call via `POST /api/calls/outbound`
+    3. Complete call via `POST /api/twilio/status`
+    4. Record returning-caller activity via `POST /api/preferences/{phone}/increment-call`
+    5. Confirm preference profile fields remain intact while `call_count` increments.
+    6. Confirm persisted DB state for both `Call` and `CallerPreference` rows.
+- Added direct DB assertions to verify durable persistence beyond API response payloads.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **390 passed**
