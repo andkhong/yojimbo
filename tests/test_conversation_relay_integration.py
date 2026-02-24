@@ -185,3 +185,40 @@ async def test_handle_setup_reconnect_updates_detected_language_without_incremen
         )
     ).scalar_one()
     assert pref.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_handle_setup_new_call_updates_caller_preferred_language(db, monkeypatch):
+    """New inbound calls should update stored caller preferred language per phone."""
+
+    async def _noop_notify(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(relay, "async_session_factory", TestSessionFactory)
+    monkeypatch.setattr(relay.notification, "notify_call_started", _noop_notify)
+
+    existing_pref = CallerPreference(
+        phone_number="+15550000004",
+        preferred_language="en",
+        call_count=2,
+    )
+    db.add(existing_pref)
+    await db.commit()
+
+    await relay._handle_setup(
+        {
+            "type": "setup",
+            "callSid": "CA_pref_lang_001",
+            "from": "+15550000004",
+            "customParameters": {"language": "es"},
+        }
+    )
+
+    async with TestSessionFactory() as check_db:
+        pref = (
+            await check_db.execute(
+                select(CallerPreference).where(CallerPreference.phone_number == "+15550000004")
+            )
+        ).scalar_one()
+        assert pref.preferred_language == "es"
+        assert pref.call_count == 3

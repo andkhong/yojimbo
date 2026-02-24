@@ -1,5 +1,21 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 16:22 PST — Iteration: caller preference language persistence + integration coverage ✅
+
+### Shipped in this iteration
+- Improved caller preference persistence in `app/ws/conversation_relay.py`:
+  - on **new inbound calls** for an existing phone number, Yojimbo now updates `caller_preferences.preferred_language` to the latest detected setup language
+  - preserves existing reconnect behavior (same `CallSid` remains idempotent for call count)
+- Added integration regression coverage in `tests/test_conversation_relay_integration.py`:
+  - verifies a returning caller with existing preferences gets language updated (`en -> es`) and `call_count` increments correctly on a new call
+- Increased suite size from **361** to **362 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **362 passed**
+
+---
+
 ## 2026-02-23 16:03 PST — Iteration: overnight status-page operating-hours enforcement ✅
 
 ### Shipped in this iteration

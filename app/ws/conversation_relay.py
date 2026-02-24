@@ -298,6 +298,9 @@ async def _handle_setup(message: dict) -> tuple[str | None, int | None, Conversa
                 if not pref:
                     pref = CallerPreference(phone_number=caller_phone, preferred_language=language)
                     db.add(pref)
+                else:
+                    # Persist latest detected language as the caller preference default.
+                    pref.preferred_language = language
                 pref.call_count = (pref.call_count or 0) + 1
                 pref.last_call_at = datetime.utcnow()
 
