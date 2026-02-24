@@ -182,6 +182,40 @@ async def test_status_callback_unknown_status_is_stored_raw(client, db, monkeypa
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("twilio_status", "expected_status"),
+    [
+        ("busy", "busy"),
+        ("no-answer", "no_answer"),
+        ("canceled", "cancelled"),
+        ("failed", "failed"),
+        ("in-progress", "in_progress"),
+    ],
+)
+async def test_status_callback_known_twilio_statuses_are_normalized(
+    client, db, monkeypatch, twilio_status, expected_status
+):
+    """Known Twilio statuses should be normalized to API status values."""
+    _install_fake_twilio(monkeypatch)
+
+    create_resp = await client.post(
+        "/api/calls/outbound",
+        json={"phone_number": "+15558880000", "department_id": 2, "language": "en"},
+    )
+    assert create_resp.status_code == 201
+    call_id = create_resp.json()["call"]["id"]
+
+    resp = await client.post(
+        "/api/twilio/status",
+        data={"CallSid": "CA_int_test_123", "CallStatus": twilio_status, "CallDuration": "7"},
+    )
+    assert resp.status_code == 204
+
+    row = (await db.execute(select(Call).where(Call.id == call_id))).scalar_one()
+    assert row.status == expected_status
+
+
+@pytest.mark.asyncio
 async def test_inbound_voice_uses_wss_when_base_url_is_https(client, monkeypatch):
     """Inbound voice TwiML should use secure WebSocket when base URL is HTTPS."""
     monkeypatch.setattr(settings, "base_url", "https://example.gov")

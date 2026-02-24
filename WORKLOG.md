@@ -1,3 +1,23 @@
+## 2026-02-23 22:57 PST — Twilio status normalization integration coverage expansion ✅
+
+### Shipped in this iteration
+- Added a new parametrized integration test to harden full call-status callback mapping coverage in `tests/test_call_flow_integration.py`:
+  - `test_status_callback_known_twilio_statuses_are_normalized`
+  - validates Twilio → internal status normalization for:
+    - `busy -> busy`
+    - `no-answer -> no_answer`
+    - `canceled -> cancelled`
+    - `failed -> failed`
+    - `in-progress -> in_progress`
+- This closes an edge-case gap where callback status mapping logic existed but lacked explicit regression coverage for all known mapped statuses.
+- Increased suite size from **405** to **410 passing tests**.
+
+### Validation
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **410 passed**
+
+---
+
 ## 2026-02-23 22:40 PST — Agent config i18n-ready error contracts + coverage ✅
 
 ### Shipped in this iteration
