@@ -7,6 +7,8 @@ Adds government-appropriate security headers to all responses:
   - X-Frame-Options
   - Referrer-Policy
   - Permissions-Policy
+  - Cross-Origin-Opener-Policy
+  - Cross-Origin-Resource-Policy
 
 CORS is handled for /api/* endpoints to support:
   - The admin dashboard SPA (same-origin or configured origin)
@@ -41,6 +43,8 @@ _FRAME = "DENY"
 _CONTENT_TYPE = "nosniff"
 _REFERRER = "strict-origin-when-cross-origin"
 _PERMISSIONS = "geolocation=(), microphone=(), camera=(), payment=()"
+_COOP = "same-origin"
+_CORP = "same-origin"
 
 
 def _normalize_origin(origin: str) -> str:
@@ -150,6 +154,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = _FRAME
         response.headers["Referrer-Policy"] = _REFERRER
         response.headers["Permissions-Policy"] = _PERMISSIONS
+        response.headers["Cross-Origin-Opener-Policy"] = _COOP
+        response.headers["Cross-Origin-Resource-Policy"] = _CORP
         response.headers["Content-Security-Policy"] = _CSP
         if not is_debug:
             response.headers["Strict-Transport-Security"] = _HSTS
