@@ -26,15 +26,24 @@ from starlette.responses import Response
 
 logger = logging.getLogger(__name__)
 
-_CSP = (
+_CSP_BASE_PREFIX = (
     "default-src 'self'; "
     "script-src 'self' 'unsafe-inline'; "  # allow inline scripts for dashboard
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: https:; "
-    "connect-src 'self' https://api.twilio.com wss: ws:; "
-    "frame-ancestors 'none'; "
-    "base-uri 'self';"
 )
+
+_CSP_BASE_SUFFIX = "frame-ancestors 'none'; base-uri 'self';"
+
+
+def _build_csp(is_debug: bool) -> str:
+    """Build CSP with stricter websocket connect policy in production."""
+    connect_src = "connect-src 'self' https://api.twilio.com wss:"
+    if is_debug:
+        # Local development may use ws:// endpoints.
+        connect_src = f"{connect_src} ws:"
+    return f"{_CSP_BASE_PREFIX}{connect_src}; {_CSP_BASE_SUFFIX}"
+
 
 _HSTS = "max-age=31536000; includeSubDomains"
 _FRAME = "DENY"
@@ -150,6 +159,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = _FRAME
         response.headers["Referrer-Policy"] = _REFERRER
         response.headers["Permissions-Policy"] = _PERMISSIONS
-        response.headers["Content-Security-Policy"] = _CSP
+        response.headers["Content-Security-Policy"] = _build_csp(is_debug)
         if not is_debug:
             response.headers["Strict-Transport-Security"] = _HSTS
