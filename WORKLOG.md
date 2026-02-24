@@ -1,5 +1,23 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 17:31 PST — Iteration: bulk-import operating-hours enforcement + coverage ✅
+
+### Shipped in this iteration
+- Extended bulk appointment import validation in `app/api/appointments.py` to enforce **structured department operating-hours** per row:
+  - applies `appointment_engine.check_operating_hours(...)` during `/api/appointments/import`
+  - rejects out-of-hours rows with existing i18n-ready operating-hours keys/params (e.g. `appointments.operating_hours.before_open`)
+  - preserves row-level partial success behavior (errors are returned in `error_rows` without 500s)
+- Added focused regression coverage in `tests/test_new_features.py`:
+  - `test_bulk_import_enforces_operating_hours`
+  - validates import rejects out-of-hours rows and returns structured `message_key` + `params.day`
+- Increased suite size from **367** to **368 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **368 passed**
+
+---
+
 ## 2026-02-23 17:08 PST — Iteration: inbound call-flow stateless webhook integration coverage ✅
 
 ### Shipped in this iteration

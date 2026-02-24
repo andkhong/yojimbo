@@ -339,6 +339,20 @@ async def bulk_import_appointments(
             )
             continue
 
+        if appointment_engine._uses_structured_operating_hours(dept.operating_hours):
+            try:
+                appointment_engine.check_operating_hours(dept.operating_hours, start, end)
+            except OutsideOperatingHoursError as exc:
+                errors.append(
+                    _import_row_error(
+                        i,
+                        getattr(exc, "message_key", "appointments.outside_operating_hours"),
+                        str(exc),
+                        **getattr(exc, "params", {}),
+                    )
+                )
+                continue
+
         if data.skip_duplicates:
             existing = (await db.execute(
                 select(Appointment).where(

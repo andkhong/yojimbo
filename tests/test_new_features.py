@@ -970,3 +970,40 @@ async def test_bulk_import_end_before_start_row(client, db):
     err = data["error_rows"][0]
     assert err["message_key"] == "appointments.import.invalid_time_window"
     assert err["params"]["field"] == "scheduled_end"
+
+
+@pytest.mark.asyncio
+async def test_bulk_import_enforces_operating_hours(client, db):
+    """Bulk import rows outside structured department hours are rejected."""
+    import json
+
+    contact = Contact(phone_number="+15592220011")
+    dept = Department(
+        name="Hours Dept",
+        code="HRS",
+        operating_hours=json.dumps({"monday": {"open": "09:00", "close": "17:00"}}),
+    )
+    db.add(contact)
+    db.add(dept)
+    await db.flush()
+
+    resp = await client.post(
+        "/api/appointments/import",
+        json={
+            "appointments": [{
+                "contact_phone": "+15592220011",
+                "department_code": "HRS",
+                "title": "Too Early",
+                "scheduled_start": "2026-03-09T08:30:00",
+                "scheduled_end": "2026-03-09T09:00:00",
+            }],
+        },
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["created"] == 0
+    assert data["errors"] == 1
+    err = data["error_rows"][0]
+    assert err["message_key"] == "appointments.operating_hours.before_open"
+    assert err["params"]["day"] == "monday"
