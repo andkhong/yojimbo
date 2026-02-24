@@ -915,6 +915,19 @@ Low priority polish (all major features done):
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **395 passed**
 
+## 2026-02-24 09:55 PST — CORS preflight cache hardening via expanded Vary headers
+
+### Completed
+- Hardened CORS cache behavior in `app/middleware/security_headers.py`:
+  - Added `_append_vary_headers(...)` helper to merge `Vary` values case-insensitively while preserving existing entries.
+  - Expanded CORS responses to include `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers`.
+- Updated CORS tests in `tests/test_new_features.py` to verify the expanded `Vary` coverage and preservation of existing values.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
+
 ## 2026-02-23 22:04 PST — Calls API i18n-ready error payloads (Item #3 iteration)
 
 ### Completed
