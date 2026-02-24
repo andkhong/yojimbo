@@ -128,11 +128,37 @@ def check_operating_hours(
     except (json.JSONDecodeError, TypeError):
         return  # Unparseable hours — don't block
 
-    day_key = _DAY_KEYS[scheduled_start.weekday()]
+    day_index = scheduled_start.weekday()
+    window_day_index = day_index
+    day_key = _DAY_KEYS[window_day_index]
+
     try:
-        day_window = _extract_day_hours(hours, scheduled_start.weekday())
+        day_window = _extract_day_hours(hours, day_index)
     except (ValueError, TypeError, AttributeError):
         return  # Can't parse hours — allow booking
+
+    open_dt: datetime | None = None
+    close_dt: datetime | None = None
+
+    # If current day has no schedule, allow early-morning spillover from
+    # previous day's overnight window (e.g. Mon 22:00-02:00 for Tue 01:00).
+    if not day_window:
+        prev_day_index = (day_index - 1) % 7
+        prev_day_window = _extract_day_hours(hours, prev_day_index)
+        if prev_day_window:
+            prev_open_time, prev_close_time = prev_day_window
+            if prev_close_time <= prev_open_time:
+                candidate_open_dt = datetime.combine(
+                    scheduled_start.date() - timedelta(days=1),
+                    prev_open_time,
+                )
+                candidate_close_dt = datetime.combine(scheduled_start.date(), prev_close_time)
+                if candidate_open_dt <= scheduled_start <= candidate_close_dt:
+                    day_window = prev_day_window
+                    window_day_index = prev_day_index
+                    day_key = _DAY_KEYS[window_day_index]
+                    open_dt = candidate_open_dt
+                    close_dt = candidate_close_dt
 
     if not day_window:
         raise OutsideOperatingHoursError(
@@ -142,12 +168,13 @@ def check_operating_hours(
         )
 
     open_time, close_time = day_window
-    open_dt = datetime.combine(scheduled_start.date(), open_time)
-    close_dt = datetime.combine(scheduled_start.date(), close_time)
+    if open_dt is None or close_dt is None:
+        open_dt = datetime.combine(scheduled_start.date(), open_time)
+        close_dt = datetime.combine(scheduled_start.date(), close_time)
 
-    # Support overnight windows, e.g. 22:00 -> 02:00 next day
-    if close_time <= open_time:
-        close_dt += timedelta(days=1)
+        # Support overnight windows, e.g. 22:00 -> 02:00 next day
+        if close_time <= open_time:
+            close_dt += timedelta(days=1)
 
     if scheduled_start < open_dt:
         raise OutsideOperatingHoursError(
@@ -155,8 +182,8 @@ def check_operating_hours(
             f"Appointment starts at {scheduled_start.strftime('%H:%M')} but the department "
             f"opens at {open_time.strftime('%H:%M')} on {day_key.capitalize()}.",
             day=day_key,
-            opens_at=open_time.strftime('%H:%M'),
-            starts_at=scheduled_start.strftime('%H:%M'),
+            opens_at=open_time.strftime("%H:%M"),
+            starts_at=scheduled_start.strftime("%H:%M"),
         )
     if scheduled_end > close_dt:
         raise OutsideOperatingHoursError(
@@ -164,8 +191,8 @@ def check_operating_hours(
             f"Appointment ends at {scheduled_end.strftime('%H:%M')} but the department "
             f"closes at {close_time.strftime('%H:%M')} on {day_key.capitalize()}.",
             day=day_key,
-            closes_at=close_time.strftime('%H:%M'),
-            ends_at=scheduled_end.strftime('%H:%M'),
+            closes_at=close_time.strftime("%H:%M"),
+            ends_at=scheduled_end.strftime("%H:%M"),
         )
 
 
@@ -254,9 +281,9 @@ async def book_appointment(
     if enforce_operating_hours:
         from app.models.department import Department
 
-        dept = (await db.execute(
-            select(Department).where(Department.id == department_id)
-        )).scalar_one_or_none()
+        dept = (
+            await db.execute(select(Department).where(Department.id == department_id))
+        ).scalar_one_or_none()
         if dept and _uses_structured_operating_hours(dept.operating_hours):
             check_operating_hours(dept.operating_hours, scheduled_start, scheduled_end)
 

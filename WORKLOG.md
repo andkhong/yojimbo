@@ -1,3 +1,20 @@
+## 2026-02-24 10:47 PST — Operating-hours overnight spillover start-time enforcement ✅
+
+### Shipped in this iteration
+- Hardened `check_operating_hours(...)` in `app/services/appointment_engine.py` for an edge case with overnight windows (`close <= open`):
+  - when a booking starts after midnight on the next day (e.g. Tue 01:00 for Mon 22:00-02:00), validation now correctly treats it as previous-day spillover
+  - preserves existing closed-day behavior when no same-day or prior overnight window applies
+- Added focused regression coverage in `tests/test_new_features.py`:
+  - `test_operating_hours_overnight_window_allows_next_day_start_time`
+- Increased suite size from **411** to **412 passing tests**.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **412 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
