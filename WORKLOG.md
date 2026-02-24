@@ -931,3 +931,16 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 08:33 PST — Security header hardening: COOP/CORP defaults
+
+### Completed
+- Hardened HTTP response security posture in `app/middleware/security_headers.py` by adding:
+  - `Cross-Origin-Opener-Policy: same-origin`
+  - `Cross-Origin-Resource-Policy: same-origin`
+- Extended existing security-header coverage in `tests/test_new_features.py` to assert both headers are present and set to `same-origin`.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
