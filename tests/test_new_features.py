@@ -288,6 +288,45 @@ async def test_public_status_full(client):
 
 
 @pytest.mark.asyncio
+async def test_public_status_high_load_threshold(client, db):
+    """Status flips to high_load when active ringing/in-progress calls exceed threshold."""
+    for i in range(51):
+        db.add(Call(
+            twilio_call_sid=f"CA_hl_{i:03d}",
+            direction="inbound",
+            status="in_progress",
+            started_at=datetime.utcnow(),
+        ))
+    await db.flush()
+
+    resp = await client.get("/api/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["metrics"]["active_calls"] >= 51
+    assert data["status"] == "high_load"
+
+
+@pytest.mark.asyncio
+async def test_public_status_db_outage_sets_service_degraded(client, db, monkeypatch):
+    """If DB health-check probe fails, status endpoint reports outage/degraded DB service."""
+    original_execute = db.execute
+
+    async def flaky_execute(statement, *args, **kwargs):
+        sql = str(statement)
+        if "SELECT 1" in sql:
+            raise RuntimeError("simulated db health-check failure")
+        return await original_execute(statement, *args, **kwargs)
+
+    monkeypatch.setattr(db, "execute", flaky_execute)
+
+    resp = await client.get("/api/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "outage"
+    assert data["services"]["database"] == "degraded"
+
+
+@pytest.mark.asyncio
 async def test_public_status_metrics(client, db):
     """Status metrics reflect actual data."""
     # Add an active call

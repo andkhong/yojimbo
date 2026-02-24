@@ -494,3 +494,19 @@ Low priority polish (all major features done):
 ### Validation
 - `ruff check app/ tests/ --fix` ✅
 - `pytest -q` ✅ **362 passed**
+
+## 2026-02-23 17:18 PST — Status endpoint edge-case test coverage expansion
+
+### Completed
+- Added targeted edge/error-path tests for public status page behavior (Item #1 coverage iteration):
+  - `test_public_status_high_load_threshold`
+    - Verifies status flips to `high_load` when active calls exceed threshold (>50).
+  - `test_public_status_db_outage_sets_service_degraded`
+    - Simulates DB health-check probe failure (`SELECT 1`) and verifies:
+      - overall status becomes `outage`
+      - database service status is `degraded`
+- Kept assertions focused on externally visible API contract (`status`, `services`, `metrics`) to harden regression detection.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **367 passed**
