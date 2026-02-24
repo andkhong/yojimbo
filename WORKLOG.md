@@ -1,3 +1,20 @@
+## 2026-02-24 06:50 PST — CSP hardening: block plugin/object embeds ✅
+
+### Shipped in this iteration
+- Hardened default Content Security Policy in `app/middleware/security_headers.py` by adding:
+  - `object-src 'none'`
+- This explicitly blocks Flash/plugin/object-style embeds even if a browser supports them, tightening baseline API/dashboard response protections.
+- Added focused regression coverage in `tests/test_new_features.py`:
+  - renamed CSP test to `test_security_headers_csp_includes_twilio_and_blocks_plugins`
+  - asserts the CSP now includes `object-src 'none'`.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
