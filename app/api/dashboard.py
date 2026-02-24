@@ -25,6 +25,10 @@ from app.schemas.dashboard import ActivityItem, DashboardStats
 router = APIRouter(tags=["dashboard"])
 
 
+def _localized_error(message_key: str, fallback: str, **params):
+    return {"message_key": message_key, "message": fallback, "params": params}
+
+
 # ---------------------------------------------------------------------------
 # Token authentication
 # ---------------------------------------------------------------------------
@@ -38,7 +42,14 @@ async def login(
 ):
     user = await authenticate_user(db, data.username, data.password)
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=401,
+            detail=_localized_error(
+                "auth.invalid_credentials",
+                "Invalid credentials",
+                username=data.username,
+            ),
+        )
 
     request.session["user_id"] = user.id
     return {"user": UserResponse.model_validate(user)}
@@ -70,7 +81,14 @@ async def issue_token(
     """
     user = await authenticate_user(db, data.username, data.password)
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=401,
+            detail=_localized_error(
+                "auth.invalid_credentials",
+                "Invalid credentials",
+                username=data.username,
+            ),
+        )
 
     access = create_access_token(subject=user.id, role=user.role)
     refresh = create_refresh_token(subject=user.id)
@@ -95,7 +113,14 @@ async def refresh_token(
     """
     payload = decode_token(refresh_token)
     if payload.get("type") != "refresh":
-        raise HTTPException(status_code=401, detail="Not a refresh token")
+        raise HTTPException(
+            status_code=401,
+            detail=_localized_error(
+                "auth.refresh.invalid_token_type",
+                "Not a refresh token",
+                token_type=payload.get("type"),
+            ),
+        )
 
     user_id = int(payload["sub"])
     user = (
@@ -107,7 +132,14 @@ async def refresh_token(
         )
     ).scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=401, detail="User not found or inactive")
+        raise HTTPException(
+            status_code=401,
+            detail=_localized_error(
+                "auth.refresh.user_not_active",
+                "User not found or inactive",
+                user_id=user_id,
+            ),
+        )
 
     new_access = create_access_token(subject=user.id, role=user.role)
     return {

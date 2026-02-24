@@ -1,3 +1,22 @@
+## 2026-02-23 21:19 PST — Iteration: auth i18n-ready error contracts + refresh edge coverage ✅
+
+### Shipped in this iteration
+- Improved auth error payloads in `app/api/dashboard.py` to be i18n-ready with structured `detail` objects (`message_key`, `message`, `params`) for key failure paths:
+  - `auth.invalid_credentials` on `/api/auth/login` and `/api/auth/token`
+  - `auth.refresh.invalid_token_type` on `/api/auth/refresh` when an access token is provided
+  - `auth.refresh.user_not_active` when refresh subject no longer maps to an active user
+- Expanded auth integration tests in `tests/test_auth_and_search.py`:
+  - wrong-password login now asserts i18n error contract and username parameter
+  - refresh-with-access-token now asserts token-type error key/params
+  - added inactive-user refresh-path test to verify structured payload contract
+- Increased suite size from **395** to **396 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **396 passed**
+
+---
+
 # Yojimbo Builder — WORKLOG
 
 ## 2026-02-23 20:18 PST — Iteration: ConversationRelay invalid setup reconnect-guard + integration coverage ✅
