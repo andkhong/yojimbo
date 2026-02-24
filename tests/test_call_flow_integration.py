@@ -137,7 +137,11 @@ async def test_status_callback_invalid_completed_duration_defaults_to_zero(
 
     completed = await client.post(
         "/api/twilio/status",
-        data={"CallSid": "CA_int_test_123", "CallStatus": "completed", "CallDuration": duration_value},
+        data={
+            "CallSid": "CA_int_test_123",
+            "CallStatus": "completed",
+            "CallDuration": duration_value,
+        },
     )
     assert completed.status_code == 204
 
@@ -259,8 +263,10 @@ async def test_inbound_voice_webhook_is_stateless_until_relay_setup(client, db):
     assert voice_resp.status_code == 200
 
     rows = (
-        await db.execute(select(Call).where(Call.twilio_call_sid == "CA_inbound_full_001"))
-    ).scalars().all()
+        (await db.execute(select(Call).where(Call.twilio_call_sid == "CA_inbound_full_001")))
+        .scalars()
+        .all()
+    )
     assert rows == []
 
     complete_resp = await client.post(

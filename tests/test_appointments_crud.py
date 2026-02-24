@@ -425,7 +425,11 @@ def _install_fake_twilio(monkeypatch: pytest.MonkeyPatch, client_cls=_FakeTwilio
 
 
 @pytest.mark.asyncio
-async def test_send_sms_not_configured_is_i18n_ready(client):
+async def test_send_sms_not_configured_is_i18n_ready(client, monkeypatch):
+    monkeypatch.setattr("app.api.messages.settings.twilio_account_sid", "")
+    monkeypatch.setattr("app.api.messages.settings.twilio_auth_token", "")
+    monkeypatch.setattr("app.api.messages.settings.twilio_phone_number", "")
+
     resp = await client.post(
         "/api/messages/send",
         json={"phone_number": "+15556667777", "body": "Test outbound"},
