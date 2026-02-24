@@ -983,8 +983,8 @@ async def test_bulk_import_default_end_time_is_one_hour(client, db):
 
 
 @pytest.mark.asyncio
-async def test_bulk_import_no_skip_duplicates_allows_second_row(client, db):
-    """With skip_duplicates=False, duplicate rows are inserted."""
+async def test_bulk_import_no_skip_duplicates_returns_i18n_duplicate_error(client, db):
+    """With skip_duplicates=False, duplicate rows return structured duplicate errors."""
     contact = Contact(phone_number="+15592220008")
     dept = Department(name="No Skip Dept", code="NSK")
     db.add(contact)
@@ -1010,7 +1010,12 @@ async def test_bulk_import_no_skip_duplicates_allows_second_row(client, db):
     }
     resp = await client.post("/api/appointments/import", json=payload)
     assert resp.status_code == 201
-    assert resp.json()["created"] == 2
+    data = resp.json()
+    assert data["created"] == 1
+    assert data["errors"] == 1
+    err = data["error_rows"][0]
+    assert err["message_key"] == "appointments.import.duplicate"
+    assert err["params"]["department_code"] == "NSK"
 
 
 @pytest.mark.asyncio

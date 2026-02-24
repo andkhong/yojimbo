@@ -386,18 +386,30 @@ async def bulk_import_appointments(
                 )
                 continue
 
-        if data.skip_duplicates:
-            existing = (await db.execute(
-                select(Appointment).where(
-                    Appointment.contact_id == contact.id,
-                    Appointment.department_id == dept.id,
-                    Appointment.scheduled_start == start,
-                    Appointment.status == "confirmed",
-                )
-            )).scalar_one_or_none()
-            if existing:
+        existing = (await db.execute(
+            select(Appointment).where(
+                Appointment.contact_id == contact.id,
+                Appointment.department_id == dept.id,
+                Appointment.scheduled_start == start,
+                Appointment.status == "confirmed",
+            )
+        )).scalar_one_or_none()
+        if existing:
+            if data.skip_duplicates:
                 skipped.append({"row": i, "existing_id": existing.id})
-                continue
+            else:
+                errors.append(
+                    _import_row_error(
+                        i,
+                        "appointments.import.duplicate",
+                        "Duplicate confirmed appointment exists for this contact and time",
+                        existing_id=existing.id,
+                        contact_phone=row.contact_phone,
+                        department_code=row.department_code,
+                        scheduled_start=row.scheduled_start,
+                    )
+                )
+            continue
 
         if not data.dry_run:
             appt = Appointment(

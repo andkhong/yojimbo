@@ -1,3 +1,22 @@
+## 2026-02-23 21:54 PST — Bulk-import duplicate conflict i18n contract (skip_duplicates=false) ✅
+
+### Shipped in this iteration
+- Hardened `POST /api/appointments/import` duplicate handling in `app/api/appointments.py`:
+  - duplicate confirmed appointments are now always detected per row
+  - when `skip_duplicates=true`, behavior is unchanged (row is listed in `skipped_rows`)
+  - when `skip_duplicates=false`, row now returns structured i18n-ready error payload in `error_rows` with:
+    - `message_key`: `appointments.import.duplicate`
+    - params including `existing_id`, `contact_phone`, `department_code`, `scheduled_start`
+- Updated regression coverage in `tests/test_new_features.py`:
+  - replaced permissive duplicate insert assertion with strict duplicate-error contract test
+- Suite remains stable at **397 passing tests** with stronger bulk-import error-path coverage.
+
+### Validation
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **397 passed**
+
+---
+
 ## 2026-02-23 21:36 PST — Bulk-import empty-payload i18n error contract + coverage ✅
 
 ### Shipped in this iteration
