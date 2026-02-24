@@ -340,6 +340,60 @@ async def test_monitor_ws_replay_reset_emitted_when_cursor_is_too_old(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_monitor_ws_replay_cursor_ahead_emitted_when_cursor_exceeds_server_head(monkeypatch):
+    """Reconnect cursors ahead of history should emit a realignment hint and no replay events."""
+    from app.ws import monitor as m
+
+    original_history = m._event_history
+    original_seq = m._event_seq
+
+    class _FakeWebSocket:
+        def __init__(self):
+            self.query_params = {"last_event_id": "999"}
+            self.sent = []
+
+        async def send_text(self, text: str):
+            self.sent.append(text)
+
+        async def iter_text(self):
+            if False:
+                yield ""
+
+    fake_ws = _FakeWebSocket()
+
+    async def _fake_connect(_ws):
+        return None
+
+    async def _fake_ping_loop(_ws):
+        return None
+
+    monkeypatch.setattr(m.monitor_manager, "connect", _fake_connect)
+    monkeypatch.setattr(m.monitor_manager, "disconnect", lambda _ws: None)
+    monkeypatch.setattr(m, "_ping_loop", _fake_ping_loop)
+
+    try:
+        m._event_history = m.deque(maxlen=3)
+        m._event_seq = 200
+        m._record_event({"event": "call_started", "data": {"call_id": 2}})  # 201
+        m._record_event({"event": "call_updated", "data": {"call_id": 2}})  # 202
+
+        await m.handle_monitor_ws(fake_ws)
+    finally:
+        m._event_history = original_history
+        m._event_seq = original_seq
+
+    sent_payloads = [json.loads(msg) for msg in fake_ws.sent]
+
+    cursor_ahead = [p for p in sent_payloads if p.get("event") == "replay_cursor_ahead"]
+    assert len(cursor_ahead) == 1
+    assert cursor_ahead[0]["data"]["requested_last_event_id"] == 999
+    assert cursor_ahead[0]["data"]["newest_available_event_id"] == 202
+
+    replay_events = [p for p in sent_payloads if p.get("event_id") is not None]
+    assert replay_events == []
+
+
+@pytest.mark.asyncio
 async def test_monitor_manager_connect_disconnect():
     """ConnectionManager tracks connections."""
     from unittest.mock import AsyncMock, MagicMock

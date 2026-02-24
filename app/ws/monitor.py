@@ -106,6 +106,21 @@ async def handle_monitor_ws(websocket: WebSocket) -> None:
                     }
                 )
             )
+        elif newest_event_id is not None and last_event_id > newest_event_id:
+            # Client cursor can legitimately drift ahead if local state is stale/corrupt
+            # after reconnect. Tell the client to realign to current server head.
+            await websocket.send_text(
+                json.dumps(
+                    {
+                        "event": "replay_cursor_ahead",
+                        "data": {
+                            "requested_last_event_id": last_event_id,
+                            "newest_available_event_id": newest_event_id,
+                            "reason": "cursor_ahead_of_server",
+                        },
+                    }
+                )
+            )
 
         missed = _events_since(last_event_id)
         logger.info("Monitor WS replay: %d events since id=%d", len(missed), last_event_id)

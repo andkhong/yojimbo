@@ -1,3 +1,23 @@
+## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
+
+### Shipped in this iteration
+- Hardened monitor reconnect behavior in `app/ws/monitor.py` for out-of-range forward cursors:
+  - when `last_event_id` is **ahead** of the server replay head, the socket now emits a structured `replay_cursor_ahead` event
+  - payload includes:
+    - `requested_last_event_id`
+    - `newest_available_event_id`
+    - `reason: cursor_ahead_of_server`
+  - replay behavior remains safe/idempotent (no phantom event replay)
+- Added regression coverage in `tests/test_recordings_and_monitor.py`:
+  - `test_monitor_ws_replay_cursor_ahead_emitted_when_cursor_exceeds_server_head`
+- Increased suite size from **410** to **411 passing tests**.
+
+### Validation
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
+
+---
+
 ## 2026-02-23 22:57 PST — Twilio status normalization integration coverage expansion ✅
 
 ### Shipped in this iteration
