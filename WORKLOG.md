@@ -1,3 +1,18 @@
+## 2026-02-24 02:10 PST — Alembic index migration safety hardening (idempotent create/drop) ✅
+
+### Shipped in this iteration
+- Hardened `alembic/versions/bf5cfbb6a13b_add_performance_indexes.py` for safer reruns and rollback resilience:
+  - added `if_not_exists=True` to all index creates in `upgrade()`
+  - added `if_exists=True` to all index drops in `downgrade()`
+- Scope kept intentionally small and migration-only (single concern: DB index safety).
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
