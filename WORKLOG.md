@@ -931,3 +931,17 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 01:23 PST — CORS hardening: scope headers to /api/* only
+
+### Completed
+- Hardened `SecurityHeadersMiddleware` so CORS logic is applied only on `/api/*` paths.
+  - Preflight `OPTIONS` short-circuit now triggers only for API routes.
+  - `Access-Control-*` and `Vary: Origin` headers are no longer emitted for server-rendered pages.
+- Added regression coverage in `tests/test_new_features.py`:
+  - `test_non_api_routes_do_not_emit_cors_headers`
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **412 passed**

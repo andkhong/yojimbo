@@ -14,6 +14,8 @@ CORS is handled for /api/* endpoints to support:
 
 Configure allowed origins via the CORS_ALLOWED_ORIGINS env var (comma-separated).
 Defaults to '*' in debug mode, locked to explicit origins in production.
+
+CORS handling is scoped to `/api/*` requests only.
 """
 
 import logging
@@ -89,9 +91,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         is_debug = os.getenv("DEBUG", "false").lower() in ("1", "true", "yes")
         allowed_origins = _get_allowed_origins()
         origin = request.headers.get("origin", "")
+        is_api_request = request.url.path.startswith("/api/")
 
-        # Handle CORS preflight (OPTIONS)
-        if request.method == "OPTIONS" and origin:
+        # Handle CORS preflight (OPTIONS) for API routes only.
+        if is_api_request and request.method == "OPTIONS" and origin:
             response = Response(status_code=204)
             self._add_cors_headers(response, origin, is_debug, allowed_origins)
             self._add_security_headers(response, is_debug)
@@ -99,8 +102,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
 
-        # CORS headers for actual requests
-        if origin:
+        # CORS headers for actual API requests only.
+        if is_api_request and origin:
             self._add_cors_headers(response, origin, is_debug, allowed_origins)
 
         # Security headers on all responses

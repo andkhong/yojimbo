@@ -127,6 +127,18 @@ async def test_non_cors_request_has_no_vary_origin(client, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_non_api_routes_do_not_emit_cors_headers(client, monkeypatch):
+    """CORS headers should be limited to /api/* endpoints only."""
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://dashboard.city.gov")
+
+    resp = await client.get("/login", headers={"origin": "https://dashboard.city.gov"})
+    assert resp.status_code == 200
+    assert "access-control-allow-origin" not in resp.headers
+    assert "vary" not in resp.headers
+
+
+@pytest.mark.asyncio
 async def test_cors_allowlist_matches_case_and_default_port_variants(client, monkeypatch):
     """Production CORS matching should normalize case/default-port variants."""
     monkeypatch.setenv("DEBUG", "false")
