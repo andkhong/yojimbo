@@ -931,3 +931,15 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 04:18 PST — CORS cache hardening: case-insensitive `Vary: Origin` dedupe
+
+### Completed
+- Hardened CORS response header handling in `app/middleware/security_headers.py` so `Vary` token checks are case-insensitive.
+- Prevented duplicate `Origin` entries when an upstream/middleware already set `Vary: ... origin` (lowercase).
+- Added focused regression test `test_cors_vary_origin_dedupes_case_insensitively` in `tests/test_cors_vary_headers.py`.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **412 passed**
