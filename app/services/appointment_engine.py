@@ -128,44 +128,77 @@ def check_operating_hours(
     except (json.JSONDecodeError, TypeError):
         return  # Unparseable hours — don't block
 
-    day_key = _DAY_KEYS[scheduled_start.weekday()]
+    day_index = scheduled_start.weekday()
+    day_key = _DAY_KEYS[day_index]
+
     try:
-        day_window = _extract_day_hours(hours, scheduled_start.weekday())
+        day_window = _extract_day_hours(hours, day_index)
+        prev_day_index = (day_index - 1) % 7
+        prev_day_key = _DAY_KEYS[prev_day_index]
+        prev_day_window = _extract_day_hours(hours, prev_day_index)
     except (ValueError, TypeError, AttributeError):
         return  # Can't parse hours — allow booking
 
-    if not day_window:
+    windows: list[tuple[datetime, datetime, str, time, time]] = []
+
+    if day_window:
+        open_time, close_time = day_window
+        open_dt = datetime.combine(scheduled_start.date(), open_time)
+        close_dt = datetime.combine(scheduled_start.date(), close_time)
+        if close_time <= open_time:
+            close_dt += timedelta(days=1)
+        windows.append((open_dt, close_dt, day_key, open_time, close_time))
+
+    if prev_day_window:
+        prev_open, prev_close = prev_day_window
+        if prev_close <= prev_open:
+            prev_date = scheduled_start.date() - timedelta(days=1)
+            prev_open_dt = datetime.combine(prev_date, prev_open)
+            prev_close_dt = datetime.combine(scheduled_start.date(), prev_close)
+            windows.append((prev_open_dt, prev_close_dt, prev_day_key, prev_open, prev_close))
+
+    matched_window = next(
+        (w for w in windows if w[0] <= scheduled_start < w[1]),
+        None,
+    )
+
+    if not matched_window:
+        if not day_window:
+            raise OutsideOperatingHoursError(
+                "appointments.operating_hours.closed_day",
+                f"The department is closed on {day_key.capitalize()}.",
+                day=day_key,
+            )
+
+        open_dt, close_dt, window_day_key, open_time, close_time = windows[0]
+        if scheduled_start < open_dt:
+            raise OutsideOperatingHoursError(
+                "appointments.operating_hours.before_open",
+                f"Appointment starts at {scheduled_start.strftime('%H:%M')} but the department "
+                f"opens at {open_time.strftime('%H:%M')} on {window_day_key.capitalize()}.",
+                day=window_day_key,
+                opens_at=open_time.strftime("%H:%M"),
+                starts_at=scheduled_start.strftime("%H:%M"),
+            )
+
         raise OutsideOperatingHoursError(
-            "appointments.operating_hours.closed_day",
-            f"The department is closed on {day_key.capitalize()}.",
-            day=day_key,
-        )
-
-    open_time, close_time = day_window
-    open_dt = datetime.combine(scheduled_start.date(), open_time)
-    close_dt = datetime.combine(scheduled_start.date(), close_time)
-
-    # Support overnight windows, e.g. 22:00 -> 02:00 next day
-    if close_time <= open_time:
-        close_dt += timedelta(days=1)
-
-    if scheduled_start < open_dt:
-        raise OutsideOperatingHoursError(
-            "appointments.operating_hours.before_open",
+            "appointments.operating_hours.after_close",
             f"Appointment starts at {scheduled_start.strftime('%H:%M')} but the department "
-            f"opens at {open_time.strftime('%H:%M')} on {day_key.capitalize()}.",
-            day=day_key,
-            opens_at=open_time.strftime('%H:%M'),
-            starts_at=scheduled_start.strftime('%H:%M'),
+            f"closes at {close_time.strftime('%H:%M')} on {window_day_key.capitalize()}.",
+            day=window_day_key,
+            closes_at=close_time.strftime("%H:%M"),
+            starts_at=scheduled_start.strftime("%H:%M"),
         )
+
+    _, close_dt, window_day_key, _, close_time = matched_window
     if scheduled_end > close_dt:
         raise OutsideOperatingHoursError(
             "appointments.operating_hours.after_close",
             f"Appointment ends at {scheduled_end.strftime('%H:%M')} but the department "
-            f"closes at {close_time.strftime('%H:%M')} on {day_key.capitalize()}.",
-            day=day_key,
-            closes_at=close_time.strftime('%H:%M'),
-            ends_at=scheduled_end.strftime('%H:%M'),
+            f"closes at {close_time.strftime('%H:%M')} on {window_day_key.capitalize()}.",
+            day=window_day_key,
+            closes_at=close_time.strftime("%H:%M"),
+            ends_at=scheduled_end.strftime("%H:%M"),
         )
 
 
@@ -254,9 +287,9 @@ async def book_appointment(
     if enforce_operating_hours:
         from app.models.department import Department
 
-        dept = (await db.execute(
-            select(Department).where(Department.id == department_id)
-        )).scalar_one_or_none()
+        dept = (
+            await db.execute(select(Department).where(Department.id == department_id))
+        ).scalar_one_or_none()
         if dept and _uses_structured_operating_hours(dept.operating_hours):
             check_operating_hours(dept.operating_hours, scheduled_start, scheduled_end)
 
