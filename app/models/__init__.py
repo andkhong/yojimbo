@@ -2,6 +2,7 @@ from app.models.agent_config import AgentConfig
 from app.models.appointment import Appointment, TimeSlot
 from app.models.audit_log import AuditLog
 from app.models.call import Call, CallEvent, ConversationTurn
+from app.models.caller_preference import CallerPreference
 from app.models.contact import Contact
 from app.models.department import Department, StaffMember
 from app.models.knowledge import KnowledgeEntry
@@ -14,6 +15,7 @@ __all__ = [
     "AuditLog",
     "Call",
     "CallEvent",
+    "CallerPreference",
     "Contact",
     "ConversationTurn",
     "DashboardUser",

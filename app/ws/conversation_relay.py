@@ -18,6 +18,7 @@ from sqlalchemy import select
 from app.database import async_session_factory
 from app.models.call import Call, ConversationTurn
 from app.models.agent_config import AgentConfig
+from app.models.caller_preference import CallerPreference
 from app.models.department import Department
 from app.models.knowledge import KnowledgeEntry
 from app.services.ai_agent import ConversationSession
@@ -201,6 +202,10 @@ async def _handle_setup(message: dict) -> tuple[str | None, int | None, Conversa
     custom_params = message.get("customParameters", {})
     language = custom_params.get("language", "en")
 
+    if not call_sid:
+        logger.warning("ConversationRelay setup missing callSid; skipping session init")
+        return None, None, None
+
     logger.info("ConversationRelay setup: CallSid=%s, From=%s", call_sid, caller_phone)
 
     async with async_session_factory() as db:
@@ -260,43 +265,99 @@ async def _handle_setup(message: dict) -> tuple[str | None, int | None, Conversa
         if custom_system_prompt:
             logger.info("Using DB-configured system prompt for call %s", call_sid)
 
-        # Create or update the call record
-        call = Call(
-            twilio_call_sid=call_sid,
-            direction="inbound",
-            status="in_progress",
-            detected_language=language,
-            started_at=datetime.utcnow(),
-        )
-        db.add(call)
-        await db.flush()
-        call_id = call.id
+        # Reconnection-safe call record handling: reuse existing CallSid rows.
+        existing = (
+            await db.execute(select(Call).where(Call.twilio_call_sid == call_sid))
+        ).scalar_one_or_none()
+
+        is_new_call = existing is None
+        if existing:
+            call = existing
+            call.status = "in_progress"
+            call.detected_language = language
+            if not call.started_at:
+                call.started_at = datetime.utcnow()
+
+            # Reconnects should not double-count call volume, but if the initial
+            # setup arrived without a caller number and a later reconnect has one,
+            # backfill caller preference storage for that phone.
+            if caller_phone:
+                pref = (
+                    await db.execute(
+                        select(CallerPreference).where(
+                            CallerPreference.phone_number == caller_phone
+                        )
+                    )
+                ).scalar_one_or_none()
+                if not pref:
+                    pref = CallerPreference(
+                        phone_number=caller_phone,
+                        preferred_language=language,
+                        call_count=1,
+                        last_call_at=datetime.utcnow(),
+                    )
+                    db.add(pref)
+                else:
+                    pref.preferred_language = language
+
+            call_id = call.id
+        else:
+            call = Call(
+                twilio_call_sid=call_sid,
+                direction="inbound",
+                status="in_progress",
+                detected_language=language,
+                started_at=datetime.utcnow(),
+            )
+            db.add(call)
+            await db.flush()
+            call_id = call.id
+
+            # Persist per-caller call count for returning callers.
+            if caller_phone:
+                pref = (
+                    await db.execute(
+                        select(CallerPreference).where(
+                            CallerPreference.phone_number == caller_phone
+                        )
+                    )
+                ).scalar_one_or_none()
+                if not pref:
+                    pref = CallerPreference(phone_number=caller_phone, preferred_language=language)
+                    db.add(pref)
+                else:
+                    # Persist latest detected language as the caller preference default.
+                    pref.preferred_language = language
+                pref.call_count = (pref.call_count or 0) + 1
+                pref.last_call_at = datetime.utcnow()
+
         await db.commit()
 
-        await notification.notify_call_started(
-            {
-                "call_id": call_id,
-                "call_sid": call_sid,
-                "caller_number": caller_phone,
-                "detected_language": language,
-                "direction": "inbound",
-            }
-        )
-
-        # Broadcast to live-call monitor
-        from app.ws.monitor import broadcast_call_event
-
-        asyncio.create_task(
-            broadcast_call_event(
-                "call_started",
+        if is_new_call:
+            await notification.notify_call_started(
                 {
                     "call_id": call_id,
                     "call_sid": call_sid,
                     "caller_number": caller_phone,
-                    "language": language,
-                },
+                    "detected_language": language,
+                    "direction": "inbound",
+                }
             )
-        )
+
+            # Broadcast to live-call monitor
+            from app.ws.monitor import broadcast_call_event
+
+            asyncio.create_task(
+                broadcast_call_event(
+                    "call_started",
+                    {
+                        "call_id": call_id,
+                        "call_sid": call_sid,
+                        "caller_number": caller_phone,
+                        "language": language,
+                    },
+                )
+            )
 
     session = ConversationSession(
         call_sid=call_sid,

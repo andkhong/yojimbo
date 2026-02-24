@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -8,6 +8,12 @@ from app.database import Base
 
 class SMSMessage(Base):
     __tablename__ = "sms_messages"
+    __table_args__ = (
+        # List API: newest messages with optional contact/department filters
+        Index("ix_sms_created", "created_at"),
+        Index("ix_sms_contact_created", "contact_id", "created_at"),
+        Index("ix_sms_dept_created", "department_id", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     twilio_message_sid: Mapped[str] = mapped_column(String(64), unique=True)

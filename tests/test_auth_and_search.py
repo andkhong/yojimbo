@@ -154,6 +154,9 @@ async def test_login_wrong_password(client, db):
         json={"username": "wrongpw", "password": "wrongpassword"},
     )
     assert resp.status_code == 401
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "auth.invalid_credentials"
+    assert detail["params"]["username"] == "wrongpw"
 
 
 @pytest.mark.asyncio
@@ -270,6 +273,34 @@ async def test_refresh_with_access_token_fails(client, db):
         params={"refresh_token": access_token},
     )
     assert resp.status_code == 401
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "auth.refresh.invalid_token_type"
+    assert detail["params"]["token_type"] == "access"
+
+
+
+
+@pytest.mark.asyncio
+async def test_refresh_for_inactive_user_returns_i18n_error(client, db):
+    """Refresh token for now-inactive user returns structured error payload."""
+    user = DashboardUser(
+        username="inactive_refresh",
+        password_hash=hash_password("password1"),
+        name="Inactive Refresh",
+        role="operator",
+    )
+    db.add(user)
+    await db.flush()
+
+    token = create_refresh_token(subject=user.id)
+    user.is_active = False
+    await db.flush()
+
+    resp = await client.post("/api/auth/refresh", params={"refresh_token": token})
+    assert resp.status_code == 401
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "auth.refresh.user_not_active"
+    assert detail["params"]["user_id"] == user.id
 
 
 @pytest.mark.asyncio
@@ -383,9 +414,13 @@ async def test_contact_lookup_by_phone(client, db):
 
 @pytest.mark.asyncio
 async def test_contact_lookup_not_found(client):
-    """Lookup with unknown phone returns 404."""
+    """Lookup with unknown phone returns i18n-ready 404 payload."""
+    phone = "+15579999999"
     resp = await client.get("/api/contacts/lookup/%2B15579999999")
     assert resp.status_code == 404
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "contacts.lookup.not_found"
+    assert detail["params"]["phone_number"] == phone
 
 
 @pytest.mark.asyncio

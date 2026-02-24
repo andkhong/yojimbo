@@ -15,6 +15,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/calls", tags=["calls"])
 
 
+def _localized_error(message_key: str, message: str, **params):
+    """Standardized i18n-ready error payload."""
+    return {
+        "message_key": message_key,
+        "message": message,
+        "params": params,
+    }
+
+
 @router.get("")
 async def list_calls(
     db: AsyncSession = Depends(get_db),
@@ -151,7 +160,10 @@ async def get_call(call_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Call).where(Call.id == call_id))
     call = result.scalar_one_or_none()
     if not call:
-        raise HTTPException(status_code=404, detail="Call not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error("calls.not_found", "Call not found", call_id=call_id),
+        )
 
     result = await db.execute(
         select(ConversationTurn)
@@ -186,11 +198,19 @@ async def transfer_call(
     """Transfer an active call to a human agent phone number."""
     call = (await db.execute(select(Call).where(Call.id == call_id))).scalar_one_or_none()
     if not call:
-        raise HTTPException(status_code=404, detail="Call not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error("calls.not_found", "Call not found", call_id=call_id),
+        )
     if call.status not in ("ringing", "in_progress"):
         raise HTTPException(
             status_code=409,
-            detail=f"Cannot transfer call in status '{call.status}'",
+            detail=_localized_error(
+                "calls.transfer.invalid_status",
+                "Cannot transfer call in current status",
+                status=call.status,
+                allowed_statuses=["ringing", "in_progress"],
+            ),
         )
 
     try:
@@ -216,7 +236,10 @@ async def get_call_recording(call_id: int, db: AsyncSession = Depends(get_db)):
         select(Call).where(Call.id == call_id)
     )).scalar_one_or_none()
     if not call:
-        raise HTTPException(status_code=404, detail="Call not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error("calls.not_found", "Call not found", call_id=call_id),
+        )
 
     if not call.recording_url:
         # Try to fetch from Twilio if we have a SID
@@ -255,7 +278,10 @@ async def set_call_recording(
         select(Call).where(Call.id == call_id)
     )).scalar_one_or_none()
     if not call:
-        raise HTTPException(status_code=404, detail="Call not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error("calls.not_found", "Call not found", call_id=call_id),
+        )
 
     call.recording_url = recording_url
     return {
@@ -272,11 +298,19 @@ async def terminate_call(
     """End an active call from the dashboard (hangs up via Twilio)."""
     call = (await db.execute(select(Call).where(Call.id == call_id))).scalar_one_or_none()
     if not call:
-        raise HTTPException(status_code=404, detail="Call not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error("calls.not_found", "Call not found", call_id=call_id),
+        )
     if call.status not in ("ringing", "in_progress"):
         raise HTTPException(
             status_code=409,
-            detail=f"Cannot terminate call in status '{call.status}'",
+            detail=_localized_error(
+                "calls.terminate.invalid_status",
+                "Cannot terminate call in current status",
+                status=call.status,
+                allowed_statuses=["ringing", "in_progress"],
+            ),
         )
 
     try:

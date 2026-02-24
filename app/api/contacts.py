@@ -17,6 +17,10 @@ from app.schemas.contact import ContactCreate, ContactResponse, ContactUpdate
 router = APIRouter(prefix="/api/contacts", tags=["contacts"])
 
 
+def _localized_error(message_key: str, fallback: str, **params):
+    return {"message_key": message_key, "message": fallback, "params": params}
+
+
 @router.get("")
 async def list_contacts(
     db: AsyncSession = Depends(get_db),
@@ -110,7 +114,14 @@ async def lookup_contact_by_phone(
     ).scalar_one_or_none()
 
     if not contact:
-        raise HTTPException(status_code=404, detail=f"No contact with phone {phone_number!r}")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "contacts.lookup.not_found",
+                "No contact with that phone number",
+                phone_number=phone_number,
+            ),
+        )
 
     return {"contact": ContactResponse.model_validate(contact)}
 
@@ -123,7 +134,10 @@ async def get_contact(
     result = await db.execute(select(Contact).where(Contact.id == contact_id))
     contact = result.scalar_one_or_none()
     if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error("contacts.not_found", "Contact not found", contact_id=contact_id),
+        )
 
     # Recent calls
     calls_result = await db.execute(
@@ -172,7 +186,10 @@ async def update_contact(
     result = await db.execute(select(Contact).where(Contact.id == contact_id))
     contact = result.scalar_one_or_none()
     if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error("contacts.not_found", "Contact not found", contact_id=contact_id),
+        )
 
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(contact, field, value)
@@ -192,7 +209,10 @@ async def get_contact_history(
         await db.execute(select(Contact).where(Contact.id == contact_id))
     ).scalar_one_or_none()
     if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error("contacts.not_found", "Contact not found", contact_id=contact_id),
+        )
 
     # All calls
     calls = (
@@ -305,11 +325,32 @@ async def merge_contacts(
     ).scalar_one_or_none()
 
     if not primary:
-        raise HTTPException(status_code=404, detail="Primary contact not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "contacts.merge.primary_not_found",
+                "Primary contact not found",
+                primary_contact_id=data.primary_contact_id,
+            ),
+        )
     if not duplicate:
-        raise HTTPException(status_code=404, detail="Duplicate contact not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "contacts.merge.duplicate_not_found",
+                "Duplicate contact not found",
+                duplicate_contact_id=data.duplicate_contact_id,
+            ),
+        )
     if primary.id == duplicate.id:
-        raise HTTPException(status_code=400, detail="Cannot merge a contact with itself")
+        raise HTTPException(
+            status_code=400,
+            detail=_localized_error(
+                "contacts.merge.same_contact",
+                "Cannot merge a contact with itself",
+                contact_id=primary.id,
+            ),
+        )
 
     # Re-assign relationships using sqlalchemy update
     from sqlalchemy import update as sa_update
@@ -367,7 +408,10 @@ async def set_contact_tags(
         await db.execute(select(Contact).where(Contact.id == contact_id))
     ).scalar_one_or_none()
     if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error("contacts.not_found", "Contact not found", contact_id=contact_id),
+        )
 
     # Store tags in notes as a structured prefix (simple approach without schema change)
     import json as _json
@@ -396,7 +440,10 @@ async def get_contact_tags(
         await db.execute(select(Contact).where(Contact.id == contact_id))
     ).scalar_one_or_none()
     if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error("contacts.not_found", "Contact not found", contact_id=contact_id),
+        )
 
     tags: list[str] = []
     if contact.notes and contact.notes.startswith("__TAGS__:"):

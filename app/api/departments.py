@@ -27,6 +27,15 @@ from app.schemas.department import (
 router = APIRouter(prefix="/api/departments", tags=["departments"])
 
 
+def _localized_error(message_key: str, fallback: str, **params):
+    """Build i18n-ready error detail payload."""
+    return {
+        "message_key": message_key,
+        "message": fallback,
+        "params": params,
+    }
+
+
 @router.get("", summary="List all active departments")
 async def list_departments(
     include_inactive: bool = Query(False),
@@ -50,7 +59,14 @@ async def get_department(
         await db.execute(select(Department).where(Department.id == department_id))
     ).scalar_one_or_none()
     if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "departments.not_found",
+                "Department not found",
+                department_id=department_id,
+            ),
+        )
 
     staff = (
         (
@@ -104,7 +120,14 @@ async def get_department_stats(
         await db.execute(select(Department).where(Department.id == department_id))
     ).scalar_one_or_none()
     if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "departments.not_found",
+                "Department not found",
+                department_id=department_id,
+            ),
+        )
 
     now = datetime.utcnow()
 
@@ -198,7 +221,13 @@ async def create_department(
     ).scalar_one_or_none()
     if existing:
         raise HTTPException(
-            status_code=409, detail="Department with that code or name already exists"
+            status_code=409,
+            detail=_localized_error(
+                "departments.conflict.code_or_name_exists",
+                "Department with that code or name already exists",
+                code=data.code,
+                name=data.name,
+            ),
         )
 
     dept = Department(**data.model_dump())
@@ -219,7 +248,14 @@ async def replace_department(
         await db.execute(select(Department).where(Department.id == department_id))
     ).scalar_one_or_none()
     if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "departments.not_found",
+                "Department not found",
+                department_id=department_id,
+            ),
+        )
 
     for field, value in data.model_dump().items():
         setattr(dept, field, value)
@@ -238,7 +274,14 @@ async def update_department(
         await db.execute(select(Department).where(Department.id == department_id))
     ).scalar_one_or_none()
     if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "departments.not_found",
+                "Department not found",
+                department_id=department_id,
+            ),
+        )
 
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(dept, field, value)
@@ -256,7 +299,14 @@ async def delete_department(
         await db.execute(select(Department).where(Department.id == department_id))
     ).scalar_one_or_none()
     if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "departments.not_found",
+                "Department not found",
+                department_id=department_id,
+            ),
+        )
 
     dept.is_active = False
     return None
@@ -275,7 +325,14 @@ async def assign_phone_number(
         await db.execute(select(Department).where(Department.id == department_id))
     ).scalar_one_or_none()
     if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "departments.not_found",
+                "Department not found",
+                department_id=department_id,
+            ),
+        )
 
     # Check if phone number is already assigned to another department
     existing = (
@@ -289,7 +346,13 @@ async def assign_phone_number(
     if existing:
         raise HTTPException(
             status_code=409,
-            detail=f"Phone number already assigned to department: {existing.name}",
+            detail=_localized_error(
+                "departments.phone_number.already_assigned",
+                f"Phone number already assigned to department: {existing.name}",
+                phone_number=data.phone_number,
+                existing_department=existing.name,
+                existing_department_id=existing.id,
+            ),
         )
 
     dept.twilio_phone_number = data.phone_number
@@ -307,7 +370,14 @@ async def add_staff_member(
         await db.execute(select(Department).where(Department.id == department_id))
     ).scalar_one_or_none()
     if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "departments.not_found",
+                "Department not found",
+                department_id=department_id,
+            ),
+        )
 
     staff = StaffMember(
         department_id=department_id,
@@ -329,7 +399,14 @@ async def _get_dept_or_404(department_id: int, db: AsyncSession) -> Department:
         await db.execute(select(Department).where(Department.id == department_id))
     ).scalar_one_or_none()
     if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "departments.not_found",
+                "Department not found",
+                department_id=department_id,
+            ),
+        )
     return dept
 
 
@@ -385,7 +462,15 @@ async def update_time_slot(
         )
     ).scalar_one_or_none()
     if not slot:
-        raise HTTPException(status_code=404, detail="Time slot not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "departments.time_slot.not_found",
+                "Time slot not found",
+                department_id=department_id,
+                slot_id=slot_id,
+            ),
+        )
 
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(slot, field, value)
@@ -410,7 +495,15 @@ async def delete_time_slot(
         )
     ).scalar_one_or_none()
     if not slot:
-        raise HTTPException(status_code=404, detail="Time slot not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "departments.time_slot.not_found",
+                "Time slot not found",
+                department_id=department_id,
+                slot_id=slot_id,
+            ),
+        )
     slot.is_active = False
     return None
 
@@ -432,7 +525,16 @@ async def bulk_generate_slots(
     created = []
     for day in data.days_of_week:
         if day < 0 or day > 6:
-            raise HTTPException(status_code=422, detail=f"Invalid day_of_week: {day}. Must be 0-6.")
+            raise HTTPException(
+                status_code=422,
+                detail=_localized_error(
+                    "departments.time_slot.invalid_day_of_week",
+                    f"Invalid day_of_week: {day}. Must be 0-6.",
+                    day_of_week=day,
+                    min_day=0,
+                    max_day=6,
+                ),
+            )
 
         if data.replace_existing:
             # Deactivate existing slots for this day
@@ -499,7 +601,14 @@ async def check_slot_availability(
     try:
         target_date = _datetime.date.fromisoformat(date)
     except ValueError:
-        raise HTTPException(status_code=422, detail="Invalid date format. Use YYYY-MM-DD.")
+        raise HTTPException(
+            status_code=422,
+            detail=_localized_error(
+                "departments.availability.invalid_date_format",
+                "Invalid date format. Use YYYY-MM-DD.",
+                expected_format="YYYY-MM-DD",
+            ),
+        )
 
     day_of_week = target_date.weekday()  # 0=Monday
 

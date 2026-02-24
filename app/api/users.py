@@ -15,6 +15,15 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 ROLE_ORDER = ["readonly", "operator", "supervisor", "admin"]
 
 
+def _error_detail(message_key: str, message: str, **params):
+    """Build i18n-ready error detail payload."""
+    return {
+        "message_key": message_key,
+        "message": message,
+        "params": params,
+    }
+
+
 def _role_level(role: str) -> int:
     """Return numeric privilege level for a role."""
     try:
@@ -63,14 +72,26 @@ async def create_user(
     if data.role not in VALID_ROLES:
         raise HTTPException(
             status_code=422,
-            detail=f"Invalid role '{data.role}'. Must be one of: {sorted(VALID_ROLES)}",
+            detail=_error_detail(
+                "users.invalid_role",
+                f"Invalid role '{data.role}'. Must be one of: {sorted(VALID_ROLES)}",
+                role=data.role,
+                allowed_roles=sorted(VALID_ROLES),
+            ),
         )
 
     existing = (
         await db.execute(select(DashboardUser).where(DashboardUser.username == data.username))
     ).scalar_one_or_none()
     if existing:
-        raise HTTPException(status_code=409, detail="Username already taken")
+        raise HTTPException(
+            status_code=409,
+            detail=_error_detail(
+                "users.username_taken",
+                "Username already taken",
+                username=data.username,
+            ),
+        )
 
     user = DashboardUser(
         username=data.username,
@@ -92,7 +113,10 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
         await db.execute(select(DashboardUser).where(DashboardUser.id == user_id))
     ).scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_error_detail("users.not_found", "User not found", user_id=user_id),
+        )
     return {"user": UserResponse.model_validate(user)}
 
 
@@ -107,14 +131,22 @@ async def update_user(
         await db.execute(select(DashboardUser).where(DashboardUser.id == user_id))
     ).scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_error_detail("users.not_found", "User not found", user_id=user_id),
+        )
 
     update_data = data.model_dump(exclude_unset=True)
 
     if "role" in update_data and update_data["role"] not in VALID_ROLES:
         raise HTTPException(
             status_code=422,
-            detail=f"Invalid role '{update_data['role']}'. Must be one of: {sorted(VALID_ROLES)}",
+            detail=_error_detail(
+                "users.invalid_role",
+                f"Invalid role '{update_data['role']}'. Must be one of: {sorted(VALID_ROLES)}",
+                role=update_data["role"],
+                allowed_roles=sorted(VALID_ROLES),
+            ),
         )
 
     # Hash password if being updated
@@ -134,7 +166,10 @@ async def deactivate_user(user_id: int, db: AsyncSession = Depends(get_db)):
         await db.execute(select(DashboardUser).where(DashboardUser.id == user_id))
     ).scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_error_detail("users.not_found", "User not found", user_id=user_id),
+        )
 
     # Guard: don't deactivate last admin
     if user.role == "admin" and user.is_active:
@@ -149,7 +184,11 @@ async def deactivate_user(user_id: int, db: AsyncSession = Depends(get_db)):
         if admin_count <= 1:
             raise HTTPException(
                 status_code=409,
-                detail="Cannot deactivate the last active admin user",
+                detail=_error_detail(
+                    "users.last_admin_deactivate_forbidden",
+                    "Cannot deactivate the last active admin user",
+                    user_id=user_id,
+                ),
             )
 
     user.is_active = False
@@ -163,7 +202,10 @@ async def activate_user(user_id: int, db: AsyncSession = Depends(get_db)):
         await db.execute(select(DashboardUser).where(DashboardUser.id == user_id))
     ).scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_error_detail("users.not_found", "User not found", user_id=user_id),
+        )
     user.is_active = True
     return {"user": UserResponse.model_validate(user)}
 
@@ -174,7 +216,12 @@ async def list_users_by_role(role: str, db: AsyncSession = Depends(get_db)):
     if role not in VALID_ROLES:
         raise HTTPException(
             status_code=422,
-            detail=f"Invalid role '{role}'. Must be one of: {sorted(VALID_ROLES)}",
+            detail=_error_detail(
+                "users.invalid_role",
+                f"Invalid role '{role}'. Must be one of: {sorted(VALID_ROLES)}",
+                role=role,
+                allowed_roles=sorted(VALID_ROLES),
+            ),
         )
     users = (
         (

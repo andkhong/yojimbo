@@ -833,6 +833,9 @@ async def test_contact_merge_self_fails(client, db):
         json={"primary_contact_id": contact.id, "duplicate_contact_id": contact.id},
     )
     assert resp.status_code == 400
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "contacts.merge.same_contact"
+    assert detail["params"]["contact_id"] == contact.id
 
 
 @pytest.mark.asyncio

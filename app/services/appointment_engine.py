@@ -1,5 +1,6 @@
 """Appointment booking engine: availability checking, booking, and cancellation."""
 
+import json
 import logging
 from datetime import date, datetime, time, timedelta
 
@@ -14,6 +15,158 @@ logger = logging.getLogger(__name__)
 
 class BookingConflictError(Exception):
     """Raised when a time slot is already at capacity."""
+
+
+class OutsideOperatingHoursError(Exception):
+    """Raised when appointment time is outside department operating hours.
+
+    Provides i18n-ready metadata while still rendering a human-readable message.
+    """
+
+    def __init__(self, message_key: str, message: str, **params):
+        super().__init__(message)
+        self.message_key = message_key
+        self.params = params
+
+
+# Day index → key used in operating_hours JSON
+_DAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+_SHORT_DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+
+
+def _parse_hhmm(value: str) -> time:
+    hour, minute = map(int, value.split(":"))
+    return time(hour, minute)
+
+
+def _extract_day_hours(hours: dict, day_index: int) -> tuple[time, time] | None:
+    """Return (open, close) for the given weekday index, if configured.
+
+    Supports both formats:
+    - {"monday": {"open": "09:00", "close": "17:00"}}
+    - {"mon-fri": "9:00-16:00"}
+    """
+    day_key = _DAY_KEYS[day_index]
+    short_key = _SHORT_DAY_KEYS[day_index]
+
+    # Preferred structured format
+    day_hours = hours.get(day_key)
+    if isinstance(day_hours, dict):
+        open_s = day_hours.get("open")
+        close_s = day_hours.get("close")
+        if isinstance(open_s, str) and isinstance(close_s, str):
+            return _parse_hhmm(open_s), _parse_hhmm(close_s)
+
+    # Alternate short key format, e.g. {"mon": {"open": ..., "close": ...}}
+    day_hours = hours.get(short_key)
+    if isinstance(day_hours, dict):
+        open_s = day_hours.get("open")
+        close_s = day_hours.get("close")
+        if isinstance(open_s, str) and isinstance(close_s, str):
+            return _parse_hhmm(open_s), _parse_hhmm(close_s)
+
+    # Legacy range format, e.g. {"mon-fri": "9:00-16:00", "sat": "10:00-14:00"}
+    for key, value in hours.items():
+        if not isinstance(value, str) or "-" not in value:
+            continue
+
+        start_s, end_s = value.split("-", 1)
+        try:
+            open_time, close_time = _parse_hhmm(start_s), _parse_hhmm(end_s)
+        except ValueError:
+            continue
+
+        normalized = key.strip().lower()
+        if normalized in {day_key, short_key}:
+            return open_time, close_time
+
+        if "-" in normalized:
+            left, right = [part.strip() for part in normalized.split("-", 1)]
+            if left in _SHORT_DAY_KEYS and right in _SHORT_DAY_KEYS:
+                left_i = _SHORT_DAY_KEYS.index(left)
+                right_i = _SHORT_DAY_KEYS.index(right)
+                if left_i <= day_index <= right_i:
+                    return open_time, close_time
+
+    return None
+
+
+def _uses_structured_operating_hours(operating_hours_json: str | None) -> bool:
+    """Return True when hours use explicit per-day object format.
+
+    Structured example: {"monday": {"open": "09:00", "close": "17:00"}}
+    """
+    if not operating_hours_json:
+        return False
+    try:
+        hours = json.loads(operating_hours_json)
+    except (json.JSONDecodeError, TypeError):
+        return False
+    if not isinstance(hours, dict):
+        return False
+    return any(isinstance(v, dict) and "open" in v and "close" in v for v in hours.values())
+
+
+def check_operating_hours(
+    operating_hours_json: str | None,
+    scheduled_start: datetime,
+    scheduled_end: datetime,
+) -> None:
+    """Validate that a time window falls within department operating hours.
+
+    operating_hours_json format:
+      {"monday": {"open": "09:00", "close": "17:00"}, ...}
+
+    Raises OutsideOperatingHoursError with a human-readable message if the
+    appointment is outside configured hours. Does nothing if no hours configured.
+    """
+    if not operating_hours_json:
+        return  # No restriction — open always
+
+    try:
+        hours = json.loads(operating_hours_json)
+    except (json.JSONDecodeError, TypeError):
+        return  # Unparseable hours — don't block
+
+    day_key = _DAY_KEYS[scheduled_start.weekday()]
+    try:
+        day_window = _extract_day_hours(hours, scheduled_start.weekday())
+    except (ValueError, TypeError, AttributeError):
+        return  # Can't parse hours — allow booking
+
+    if not day_window:
+        raise OutsideOperatingHoursError(
+            "appointments.operating_hours.closed_day",
+            f"The department is closed on {day_key.capitalize()}.",
+            day=day_key,
+        )
+
+    open_time, close_time = day_window
+    open_dt = datetime.combine(scheduled_start.date(), open_time)
+    close_dt = datetime.combine(scheduled_start.date(), close_time)
+
+    # Support overnight windows, e.g. 22:00 -> 02:00 next day
+    if close_time <= open_time:
+        close_dt += timedelta(days=1)
+
+    if scheduled_start < open_dt:
+        raise OutsideOperatingHoursError(
+            "appointments.operating_hours.before_open",
+            f"Appointment starts at {scheduled_start.strftime('%H:%M')} but the department "
+            f"opens at {open_time.strftime('%H:%M')} on {day_key.capitalize()}.",
+            day=day_key,
+            opens_at=open_time.strftime('%H:%M'),
+            starts_at=scheduled_start.strftime('%H:%M'),
+        )
+    if scheduled_end > close_dt:
+        raise OutsideOperatingHoursError(
+            "appointments.operating_hours.after_close",
+            f"Appointment ends at {scheduled_end.strftime('%H:%M')} but the department "
+            f"closes at {close_time.strftime('%H:%M')} on {day_key.capitalize()}.",
+            day=day_key,
+            closes_at=close_time.strftime('%H:%M'),
+            ends_at=scheduled_end.strftime('%H:%M'),
+        )
 
 
 async def get_available_slots(
@@ -90,11 +243,23 @@ async def book_appointment(
     language: str = "en",
     call_id: int | None = None,
     skip_conflict_check: bool = False,
+    enforce_operating_hours: bool = False,
 ) -> Appointment:
     """Book an appointment. Returns the created Appointment.
 
-    Raises BookingConflictError if the time slot is already at capacity.
+    Raises:
+      BookingConflictError: if the time slot is already at capacity.
+      OutsideOperatingHoursError: if appointment is outside dept operating hours.
     """
+    if enforce_operating_hours:
+        from app.models.department import Department
+
+        dept = (await db.execute(
+            select(Department).where(Department.id == department_id)
+        )).scalar_one_or_none()
+        if dept and _uses_structured_operating_hours(dept.operating_hours):
+            check_operating_hours(dept.operating_hours, scheduled_start, scheduled_end)
+
     if not skip_conflict_check:
         await _check_booking_capacity(db, department_id, scheduled_start, scheduled_end)
 

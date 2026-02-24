@@ -22,12 +22,23 @@ function dashboardApp() {
         // WebSocket
         ws: null,
         wsReconnectTimer: null,
+        wsReconnectAttempts: 0,
+        wsHeartbeatTimer: null,
+        wsHeartbeatTimeout: null,
+        wsLastPongAt: null,
 
         init() {
             this.connectWebSocket();
             this.fetchStats();
             // Refresh stats every 30 seconds
             setInterval(() => this.fetchStats(), 30000);
+
+            // If tab becomes active again and socket is not open, reconnect.
+            window.addEventListener('focus', () => {
+                if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
+                    this.connectWebSocket();
+                }
+            });
         },
 
         connectWebSocket() {
@@ -39,15 +50,21 @@ function dashboardApp() {
 
                 this.ws.onopen = () => {
                     console.log('Dashboard WebSocket connected');
+                    this.wsReconnectAttempts = 0;
+                    this.wsLastPongAt = Date.now();
                     if (this.wsReconnectTimer) {
                         clearTimeout(this.wsReconnectTimer);
                         this.wsReconnectTimer = null;
                     }
+                    this.startHeartbeat();
                 };
 
                 this.ws.onmessage = (event) => {
                     try {
                         const msg = JSON.parse(event.data);
+                        if (msg.event === 'pong' || msg.event === 'ping') {
+                            this.wsLastPongAt = Date.now();
+                        }
                         this.handleWsEvent(msg);
                     } catch (e) {
                         console.error('Failed to parse WS message:', e);
@@ -55,8 +72,8 @@ function dashboardApp() {
                 };
 
                 this.ws.onclose = () => {
-                    console.log('Dashboard WebSocket disconnected, reconnecting...');
-                    this.wsReconnectTimer = setTimeout(() => this.connectWebSocket(), 3000);
+                    this.stopHeartbeat();
+                    this.scheduleReconnect();
                 };
 
                 this.ws.onerror = (err) => {
@@ -64,7 +81,62 @@ function dashboardApp() {
                 };
             } catch (e) {
                 console.error('WebSocket connection failed:', e);
-                this.wsReconnectTimer = setTimeout(() => this.connectWebSocket(), 5000);
+                this.scheduleReconnect();
+            }
+        },
+
+        scheduleReconnect() {
+            if (this.wsReconnectTimer) return;
+
+            // Exponential backoff (1s -> 2s -> 4s ... capped at 30s) + jitter
+            const base = Math.min(30000, 1000 * Math.pow(2, this.wsReconnectAttempts));
+            const jitter = Math.floor(Math.random() * 500);
+            const waitMs = base + jitter;
+            this.wsReconnectAttempts += 1;
+
+            console.log(`Dashboard WebSocket disconnected, reconnecting in ${waitMs}ms...`);
+            this.wsReconnectTimer = setTimeout(() => {
+                this.wsReconnectTimer = null;
+                this.connectWebSocket();
+            }, waitMs);
+        },
+
+        startHeartbeat() {
+            this.stopHeartbeat();
+
+            this.wsHeartbeatTimer = setInterval(() => {
+                if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                    return;
+                }
+
+                try {
+                    this.ws.send(JSON.stringify({ action: 'ping' }));
+                } catch (e) {
+                    console.warn('WS ping failed:', e);
+                }
+
+                if (this.wsHeartbeatTimeout) {
+                    clearTimeout(this.wsHeartbeatTimeout);
+                }
+
+                this.wsHeartbeatTimeout = setTimeout(() => {
+                    const stale = !this.wsLastPongAt || (Date.now() - this.wsLastPongAt > 30000);
+                    if (stale && this.ws && this.ws.readyState === WebSocket.OPEN) {
+                        console.warn('WS heartbeat stale; forcing reconnect');
+                        this.ws.close();
+                    }
+                }, 12000);
+            }, 10000);
+        },
+
+        stopHeartbeat() {
+            if (this.wsHeartbeatTimer) {
+                clearInterval(this.wsHeartbeatTimer);
+                this.wsHeartbeatTimer = null;
+            }
+            if (this.wsHeartbeatTimeout) {
+                clearTimeout(this.wsHeartbeatTimeout);
+                this.wsHeartbeatTimeout = null;
             }
         },
 

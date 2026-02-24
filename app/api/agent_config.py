@@ -11,6 +11,14 @@ from app.schemas.agent_config import AgentConfigEntry, AgentConfigResponse, Agen
 router = APIRouter(prefix="/api/config", tags=["agent-config"])
 
 
+def _localized_error(message_key: str, message: str, **params):
+    return {
+        "message_key": message_key,
+        "message": message,
+        "params": params,
+    }
+
+
 async def _get_all_configs(db: AsyncSession) -> list[AgentConfig]:
     result = await db.execute(select(AgentConfig).order_by(AgentConfig.key))
     return result.scalars().all()
@@ -64,12 +72,26 @@ async def list_config_keys():
 async def get_config_key(key: str, db: AsyncSession = Depends(get_db)):
     """Return a single config entry by key."""
     if key not in VALID_CONFIG_KEYS:
-        raise HTTPException(status_code=400, detail=f"Invalid config key: {key}")
+        raise HTTPException(
+            status_code=400,
+            detail=_localized_error(
+                "agent_config.invalid_key",
+                "Invalid config key",
+                key=key,
+            ),
+        )
     entry = (
         await db.execute(select(AgentConfig).where(AgentConfig.key == key))
     ).scalar_one_or_none()
     if not entry:
-        raise HTTPException(status_code=404, detail=f"Config key '{key}' not set")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "agent_config.key_not_set",
+                "Config key not set",
+                key=key,
+            ),
+        )
     return {"key": key, "value": entry.value, "updated_at": entry.updated_at}
 
 
@@ -80,7 +102,14 @@ async def delete_config_key(key: str, db: AsyncSession = Depends(get_db)):
         await db.execute(select(AgentConfig).where(AgentConfig.key == key))
     ).scalar_one_or_none()
     if not entry:
-        raise HTTPException(status_code=404, detail=f"Config key '{key}' not set")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "agent_config.key_not_set",
+                "Config key not set",
+                key=key,
+            ),
+        )
     await db.delete(entry)
     return None
 

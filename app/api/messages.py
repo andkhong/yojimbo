@@ -1,6 +1,8 @@
 """SMS message API endpoints."""
 
-from fastapi import APIRouter, Depends, Query
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,7 +11,17 @@ from app.database import get_db
 from app.models.message import SMSMessage
 from app.schemas.message import SendSMSRequest, SMSMessageResponse
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/messages", tags=["messages"])
+
+
+def _localized_error(message_key: str, fallback: str, **params):
+    return {
+        "message_key": message_key,
+        "message": fallback,
+        "params": params,
+    }
 
 
 @router.get("")
@@ -47,6 +59,24 @@ async def send_sms(
     db: AsyncSession = Depends(get_db),
 ):
     """Send an outbound SMS via Twilio."""
+    missing_fields: list[str] = []
+    if not settings.twilio_account_sid:
+        missing_fields.append("twilio_account_sid")
+    if not settings.twilio_auth_token:
+        missing_fields.append("twilio_auth_token")
+    if not settings.twilio_phone_number:
+        missing_fields.append("twilio_phone_number")
+
+    if missing_fields:
+        raise HTTPException(
+            status_code=503,
+            detail=_localized_error(
+                "messages.send.not_configured",
+                "SMS service is not configured",
+                missing_fields=missing_fields,
+            ),
+        )
+
     try:
         from twilio.rest import Client
 
@@ -67,5 +97,13 @@ async def send_sms(
         await db.flush()
 
         return {"message": SMSMessageResponse.model_validate(sms)}
-    except Exception as e:
-        return {"error": f"Failed to send SMS: {e}"}
+    except Exception as exc:
+        logger.exception("Failed to send SMS")
+        raise HTTPException(
+            status_code=502,
+            detail=_localized_error(
+                "messages.send.failed",
+                "Failed to send SMS",
+                reason=str(exc),
+            ),
+        ) from exc

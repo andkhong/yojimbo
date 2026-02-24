@@ -14,6 +14,15 @@ from app.schemas.audit_log import AuditLogListResponse, AuditLogResponse
 router = APIRouter(prefix="/api/audit-logs", tags=["audit-logs"])
 
 
+def _localized_error(message_key: str, message: str, **params: object) -> dict[str, object]:
+    """Return i18n-ready API error payload with stable translation key and params."""
+    return {
+        "message_key": message_key,
+        "message": message,
+        "params": params,
+    }
+
+
 @router.get("", summary="List audit logs (paginated, filterable)")
 async def list_audit_logs(
     db: AsyncSession = Depends(get_db),
@@ -83,7 +92,14 @@ async def get_audit_log(log_id: int, db: AsyncSession = Depends(get_db)) -> Audi
     if not log:
         from fastapi import HTTPException
 
-        raise HTTPException(status_code=404, detail="Audit log entry not found")
+        raise HTTPException(
+            status_code=404,
+            detail=_localized_error(
+                "audit_logs.not_found",
+                "Audit log entry not found",
+                log_id=log_id,
+            ),
+        )
     return AuditLogResponse.model_validate(log)
 
 

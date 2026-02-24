@@ -8,6 +8,7 @@ Covers:
 - Monitor broadcast_call_event helper
 """
 
+import json
 from datetime import datetime
 
 import pytest
@@ -152,6 +153,244 @@ async def test_monitor_broadcast_call_event():
         "transcript_turn",
         {"call_id": 1, "caller_text": "Hello", "agent_response": "Hi!", "turn": 1},
     )
+
+
+@pytest.mark.asyncio
+async def test_monitor_replay_buffer_tracks_incrementing_event_ids():
+    """Monitor replay buffer stores monotonic event ids for reconnect support."""
+    from app.ws import monitor as m
+
+    baseline = m._event_seq
+
+    first = m._record_event({"event": "call_started", "data": {"call_id": 101}})
+    second = m._record_event({"event": "call_updated", "data": {"call_id": 101}})
+
+    first_payload = json.loads(first)
+    second_payload = json.loads(second)
+
+    assert first_payload["event_id"] == baseline + 1
+    assert second_payload["event_id"] == baseline + 2
+
+
+@pytest.mark.asyncio
+async def test_monitor_events_since_returns_only_newer_events():
+    """_events_since filters replay events by event id."""
+    from app.ws import monitor as m
+
+    msg = m._record_event({"event": "call_ended", "data": {"call_id": 202}})
+    payload = json.loads(msg)
+    event_id = payload["event_id"]
+
+    newer = m._events_since(event_id - 1)
+    assert any(evt["event_id"] == event_id for evt in newer)
+
+    none_newer = m._events_since(event_id)
+    assert all(evt["event_id"] > event_id for evt in none_newer)
+
+
+@pytest.mark.asyncio
+async def test_monitor_replay_buffer_respects_max_history():
+    """Replay buffer should cap history at _EVENT_HISTORY_MAX newest events."""
+    from app.ws import monitor as m
+
+    original_history = m._event_history
+
+    try:
+        m._event_history = m.deque(maxlen=3)
+        m._record_event({"event": "e1", "data": {}})
+        m._record_event({"event": "e2", "data": {}})
+        m._record_event({"event": "e3", "data": {}})
+        m._record_event({"event": "e4", "data": {}})
+
+        assert len(m._event_history) == 3
+        events = list(m._event_history)
+        assert [e["event"] for e in events] == ["e2", "e3", "e4"]
+    finally:
+        m._event_history = original_history
+
+
+@pytest.mark.asyncio
+async def test_monitor_ws_invalid_last_event_id_skips_replay(monkeypatch):
+    """Non-integer last_event_id should not trigger replay and should still connect."""
+    from app.ws import monitor as m
+
+    class _FakeWebSocket:
+        def __init__(self):
+            self.query_params = {"last_event_id": "not-an-int"}
+            self.sent = []
+
+        async def send_text(self, text: str):
+            self.sent.append(text)
+
+        async def iter_text(self):
+            if False:
+                yield ""
+
+    fake_ws = _FakeWebSocket()
+
+    async def _fake_connect(ws):
+        return None
+
+    async def _fake_ping_loop(_ws):
+        return None
+
+    monkeypatch.setattr(m.monitor_manager, "connect", _fake_connect)
+    monkeypatch.setattr(m.monitor_manager, "disconnect", lambda _ws: None)
+    monkeypatch.setattr(m, "_ping_loop", _fake_ping_loop)
+
+    await m.handle_monitor_ws(fake_ws)
+
+    sent_payloads = [json.loads(msg) for msg in fake_ws.sent]
+    connected_msgs = [p for p in sent_payloads if p.get("event") == "connected"]
+    replay_msgs = [p for p in sent_payloads if p.get("event_id") is not None]
+
+    assert len(connected_msgs) == 1
+    assert replay_msgs == []
+
+
+@pytest.mark.asyncio
+async def test_monitor_ws_negative_last_event_id_clamps_to_zero(monkeypatch):
+    """Negative reconnect cursors should be treated as fresh connections."""
+    from app.ws import monitor as m
+
+    class _FakeWebSocket:
+        def __init__(self):
+            self.query_params = {"last_event_id": "-10"}
+            self.sent = []
+
+        async def send_text(self, text: str):
+            self.sent.append(text)
+
+        async def iter_text(self):
+            if False:
+                yield ""
+
+    fake_ws = _FakeWebSocket()
+
+    async def _fake_connect(_ws):
+        return None
+
+    async def _fake_ping_loop(_ws):
+        return None
+
+    monkeypatch.setattr(m.monitor_manager, "connect", _fake_connect)
+    monkeypatch.setattr(m.monitor_manager, "disconnect", lambda _ws: None)
+    monkeypatch.setattr(m, "_ping_loop", _fake_ping_loop)
+
+    await m.handle_monitor_ws(fake_ws)
+
+    sent_payloads = [json.loads(msg) for msg in fake_ws.sent]
+    assert [p for p in sent_payloads if p.get("event") == "connected"]
+    assert [p for p in sent_payloads if p.get("event") == "replay_reset"] == []
+    assert [p for p in sent_payloads if p.get("event_id") is not None] == []
+
+
+@pytest.mark.asyncio
+async def test_monitor_ws_replay_reset_emitted_when_cursor_is_too_old(monkeypatch):
+    """Reconnecting clients should be told when their replay cursor is outside buffer."""
+    from app.ws import monitor as m
+
+    original_history = m._event_history
+    original_seq = m._event_seq
+
+    class _FakeWebSocket:
+        def __init__(self):
+            self.query_params = {"last_event_id": "50"}
+            self.sent = []
+
+        async def send_text(self, text: str):
+            self.sent.append(text)
+
+        async def iter_text(self):
+            if False:
+                yield ""
+
+    fake_ws = _FakeWebSocket()
+
+    async def _fake_connect(_ws):
+        return None
+
+    async def _fake_ping_loop(_ws):
+        return None
+
+    monkeypatch.setattr(m.monitor_manager, "connect", _fake_connect)
+    monkeypatch.setattr(m.monitor_manager, "disconnect", lambda _ws: None)
+    monkeypatch.setattr(m, "_ping_loop", _fake_ping_loop)
+
+    try:
+        m._event_history = m.deque(maxlen=3)
+        m._event_seq = 100
+        m._record_event({"event": "call_started", "data": {"call_id": 1}})  # 101
+        m._record_event({"event": "call_updated", "data": {"call_id": 1}})  # 102
+
+        await m.handle_monitor_ws(fake_ws)
+    finally:
+        m._event_history = original_history
+        m._event_seq = original_seq
+
+    sent_payloads = [json.loads(msg) for msg in fake_ws.sent]
+
+    replay_reset = [p for p in sent_payloads if p.get("event") == "replay_reset"]
+    assert len(replay_reset) == 1
+    assert replay_reset[0]["data"]["requested_last_event_id"] == 50
+    assert replay_reset[0]["data"]["oldest_available_event_id"] == 101
+
+    replay_events = [p for p in sent_payloads if p.get("event_id") is not None]
+    assert [p["event_id"] for p in replay_events] == [101, 102]
+
+
+@pytest.mark.asyncio
+async def test_monitor_ws_replay_cursor_ahead_emitted_when_cursor_exceeds_server_head(monkeypatch):
+    """Reconnect cursors ahead of history should emit a realignment hint and no replay events."""
+    from app.ws import monitor as m
+
+    original_history = m._event_history
+    original_seq = m._event_seq
+
+    class _FakeWebSocket:
+        def __init__(self):
+            self.query_params = {"last_event_id": "999"}
+            self.sent = []
+
+        async def send_text(self, text: str):
+            self.sent.append(text)
+
+        async def iter_text(self):
+            if False:
+                yield ""
+
+    fake_ws = _FakeWebSocket()
+
+    async def _fake_connect(_ws):
+        return None
+
+    async def _fake_ping_loop(_ws):
+        return None
+
+    monkeypatch.setattr(m.monitor_manager, "connect", _fake_connect)
+    monkeypatch.setattr(m.monitor_manager, "disconnect", lambda _ws: None)
+    monkeypatch.setattr(m, "_ping_loop", _fake_ping_loop)
+
+    try:
+        m._event_history = m.deque(maxlen=3)
+        m._event_seq = 200
+        m._record_event({"event": "call_started", "data": {"call_id": 2}})  # 201
+        m._record_event({"event": "call_updated", "data": {"call_id": 2}})  # 202
+
+        await m.handle_monitor_ws(fake_ws)
+    finally:
+        m._event_history = original_history
+        m._event_seq = original_seq
+
+    sent_payloads = [json.loads(msg) for msg in fake_ws.sent]
+
+    cursor_ahead = [p for p in sent_payloads if p.get("event") == "replay_cursor_ahead"]
+    assert len(cursor_ahead) == 1
+    assert cursor_ahead[0]["data"]["requested_last_event_id"] == 999
+    assert cursor_ahead[0]["data"]["newest_available_event_id"] == 202
+
+    replay_events = [p for p in sent_payloads if p.get("event_id") is not None]
+    assert replay_events == []
 
 
 @pytest.mark.asyncio

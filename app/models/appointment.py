@@ -1,6 +1,6 @@
 from datetime import datetime, time
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Time
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, Time
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -8,6 +8,13 @@ from app.database import Base
 
 class Appointment(Base):
     __tablename__ = "appointments"
+    __table_args__ = (
+        # Most common filter combinations for reminder cron + availability check
+        Index("ix_appt_dept_start", "department_id", "scheduled_start"),
+        Index("ix_appt_status_start", "status", "scheduled_start"),
+        Index("ix_appt_contact", "contact_id"),
+        Index("ix_appt_reminder", "status", "reminder_sent", "scheduled_start"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     contact_id: Mapped[int] = mapped_column(Integer, ForeignKey("contacts.id"))
@@ -32,6 +39,10 @@ class Appointment(Base):
 
 class TimeSlot(Base):
     __tablename__ = "time_slots"
+    __table_args__ = (
+        # High-frequency availability lookups by department/day/activity sorted by start time
+        Index("ix_time_slots_lookup", "department_id", "day_of_week", "is_active", "start_time"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     department_id: Mapped[int] = mapped_column(Integer, ForeignKey("departments.id"))
