@@ -32,8 +32,11 @@ _CSP = (
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: https:; "
     "connect-src 'self' https://api.twilio.com wss: ws:; "
+    "object-src 'none'; "
+    "frame-src 'none'; "
     "frame-ancestors 'none'; "
-    "base-uri 'self';"
+    "base-uri 'none'; "
+    "form-action 'self';"
 )
 
 _HSTS = "max-age=31536000; includeSubDomains"
