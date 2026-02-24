@@ -40,6 +40,16 @@ def _events_since(last_event_id: int) -> list[dict]:
     return [event for event in _event_history if event.get("event_id", 0) > last_event_id]
 
 
+def _replay_window() -> tuple[int | None, int | None]:
+    """Return (oldest_event_id, newest_event_id) currently available in memory."""
+    if not _event_history:
+        return None, None
+
+    oldest = _event_history[0].get("event_id")
+    newest = _event_history[-1].get("event_id")
+    return oldest, newest
+
+
 async def handle_monitor_ws(websocket: WebSocket) -> None:
     """Handle a live-call monitor WebSocket connection.
 
@@ -78,8 +88,25 @@ async def handle_monitor_ws(websocket: WebSocket) -> None:
         last_event_id = int(last_event_raw) if last_event_raw else 0
     except ValueError:
         last_event_id = 0
+    last_event_id = max(0, last_event_id)
 
     if last_event_id > 0:
+        oldest_event_id, newest_event_id = _replay_window()
+        if oldest_event_id is not None and last_event_id < oldest_event_id:
+            await websocket.send_text(
+                json.dumps(
+                    {
+                        "event": "replay_reset",
+                        "data": {
+                            "requested_last_event_id": last_event_id,
+                            "oldest_available_event_id": oldest_event_id,
+                            "newest_available_event_id": newest_event_id,
+                            "reason": "replay_window_exceeded",
+                        },
+                    }
+                )
+            )
+
         missed = _events_since(last_event_id)
         logger.info("Monitor WS replay: %d events since id=%d", len(missed), last_event_id)
         for evt in missed:

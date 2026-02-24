@@ -249,6 +249,97 @@ async def test_monitor_ws_invalid_last_event_id_skips_replay(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_monitor_ws_negative_last_event_id_clamps_to_zero(monkeypatch):
+    """Negative reconnect cursors should be treated as fresh connections."""
+    from app.ws import monitor as m
+
+    class _FakeWebSocket:
+        def __init__(self):
+            self.query_params = {"last_event_id": "-10"}
+            self.sent = []
+
+        async def send_text(self, text: str):
+            self.sent.append(text)
+
+        async def iter_text(self):
+            if False:
+                yield ""
+
+    fake_ws = _FakeWebSocket()
+
+    async def _fake_connect(_ws):
+        return None
+
+    async def _fake_ping_loop(_ws):
+        return None
+
+    monkeypatch.setattr(m.monitor_manager, "connect", _fake_connect)
+    monkeypatch.setattr(m.monitor_manager, "disconnect", lambda _ws: None)
+    monkeypatch.setattr(m, "_ping_loop", _fake_ping_loop)
+
+    await m.handle_monitor_ws(fake_ws)
+
+    sent_payloads = [json.loads(msg) for msg in fake_ws.sent]
+    assert [p for p in sent_payloads if p.get("event") == "connected"]
+    assert [p for p in sent_payloads if p.get("event") == "replay_reset"] == []
+    assert [p for p in sent_payloads if p.get("event_id") is not None] == []
+
+
+@pytest.mark.asyncio
+async def test_monitor_ws_replay_reset_emitted_when_cursor_is_too_old(monkeypatch):
+    """Reconnecting clients should be told when their replay cursor is outside buffer."""
+    from app.ws import monitor as m
+
+    original_history = m._event_history
+    original_seq = m._event_seq
+
+    class _FakeWebSocket:
+        def __init__(self):
+            self.query_params = {"last_event_id": "50"}
+            self.sent = []
+
+        async def send_text(self, text: str):
+            self.sent.append(text)
+
+        async def iter_text(self):
+            if False:
+                yield ""
+
+    fake_ws = _FakeWebSocket()
+
+    async def _fake_connect(_ws):
+        return None
+
+    async def _fake_ping_loop(_ws):
+        return None
+
+    monkeypatch.setattr(m.monitor_manager, "connect", _fake_connect)
+    monkeypatch.setattr(m.monitor_manager, "disconnect", lambda _ws: None)
+    monkeypatch.setattr(m, "_ping_loop", _fake_ping_loop)
+
+    try:
+        m._event_history = m.deque(maxlen=3)
+        m._event_seq = 100
+        m._record_event({"event": "call_started", "data": {"call_id": 1}})  # 101
+        m._record_event({"event": "call_updated", "data": {"call_id": 1}})  # 102
+
+        await m.handle_monitor_ws(fake_ws)
+    finally:
+        m._event_history = original_history
+        m._event_seq = original_seq
+
+    sent_payloads = [json.loads(msg) for msg in fake_ws.sent]
+
+    replay_reset = [p for p in sent_payloads if p.get("event") == "replay_reset"]
+    assert len(replay_reset) == 1
+    assert replay_reset[0]["data"]["requested_last_event_id"] == 50
+    assert replay_reset[0]["data"]["oldest_available_event_id"] == 101
+
+    replay_events = [p for p in sent_payloads if p.get("event_id") is not None]
+    assert [p["event_id"] for p in replay_events] == [101, 102]
+
+
+@pytest.mark.asyncio
 async def test_monitor_manager_connect_disconnect():
     """ConnectionManager tracks connections."""
     from unittest.mock import AsyncMock, MagicMock

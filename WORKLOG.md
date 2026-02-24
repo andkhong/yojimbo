@@ -1,5 +1,23 @@
 # Yojimbo Builder — WORKLOG
 
+## 2026-02-23 18:48 PST — Iteration: monitor WebSocket replay-window reconnect hardening ✅
+
+### Shipped in this iteration
+- Hardened monitor reconnect behavior in `app/ws/monitor.py`:
+  - added replay window introspection helper to track oldest/newest buffered `event_id`
+  - clamped negative `last_event_id` query params to `0` (fresh connect semantics)
+  - when a reconnect cursor falls outside retained history, server now emits a structured `replay_reset` event before replaying available events
+- Expanded monitor reconnection tests in `tests/test_recordings_and_monitor.py`:
+  - `test_monitor_ws_negative_last_event_id_clamps_to_zero`
+  - `test_monitor_ws_replay_reset_emitted_when_cursor_is_too_old`
+- Increased suite size from **374** to **376 passing tests**.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **376 passed**
+
+---
+
 ## 2026-02-23 18:03 PST — Iteration: reconnect caller-preference backfill hardening + integration coverage ✅
 
 ### Shipped in this iteration
