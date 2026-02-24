@@ -931,3 +931,15 @@ Low priority polish (all major features done):
 ### Validation
 - `.venv311/bin/ruff check app/ tests/ --fix` ✅
 - `.venv311/bin/pytest -q` ✅ **400 passed**
+
+## 2026-02-24 01:03 PST — Migration index safety guardrails (DB index safety)
+
+### Completed
+- Hardened migration `bf5cfbb6a13b_add_performance_indexes` to be idempotent for partial/manual DB states.
+- Added shared `INDEX_SPECS` and `_index_exists(...)` helper using SQLAlchemy inspector.
+- Updated `upgrade()`/`downgrade()` to create/drop indexes only when needed, preventing duplicate/missing index failures.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
