@@ -649,3 +649,23 @@ Low priority polish (all major features done):
 ### Validation
 - `ruff check app/ tests/ --fix` ✅
 - `pytest -q` ✅ **374 passed**
+
+## 2026-02-23 19:49 PST — High-traffic DB index expansion (SMS feeds + slot lookup)
+
+### Completed
+- Implemented additional performance indexes for Item #8 (DB indexes):
+  - `sms_messages`
+    - `ix_sms_created` on `(created_at)` for newest-first global message feeds.
+    - `ix_sms_contact_created` on `(contact_id, created_at)` for per-contact threaded history.
+    - `ix_sms_dept_created` on `(department_id, created_at)` for department-level inbox filtering.
+  - `time_slots`
+    - `ix_time_slots_lookup` on `(department_id, day_of_week, is_active, start_time)` to accelerate department availability lookups and ordered slot scans.
+- Added Alembic migration:
+  - `9a7e1c2d4f10_add_sms_and_timeslot_indexes.py`
+- Added schema contract tests in `tests/test_new_features.py` to assert these indexes remain declared:
+  - `test_sms_message_model_declares_high_traffic_indexes`
+  - `test_time_slot_model_declares_lookup_index`
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **384 passed**

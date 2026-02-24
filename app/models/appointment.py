@@ -39,6 +39,10 @@ class Appointment(Base):
 
 class TimeSlot(Base):
     __tablename__ = "time_slots"
+    __table_args__ = (
+        # High-frequency availability lookups by department/day/activity sorted by start time
+        Index("ix_time_slots_lookup", "department_id", "day_of_week", "is_active", "start_time"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     department_id: Mapped[int] = mapped_column(Integer, ForeignKey("departments.id"))

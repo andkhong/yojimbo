@@ -8,10 +8,11 @@ from datetime import datetime, timedelta
 import pytest
 from sqlalchemy import select
 
-from app.models.appointment import Appointment
+from app.models.appointment import Appointment, TimeSlot
 from app.models.call import Call
 from app.models.contact import Contact
 from app.models.department import Department
+from app.models.message import SMSMessage
 
 
 # ===========================================================================
@@ -1061,3 +1062,22 @@ async def test_bulk_import_enforces_operating_hours(client, db):
     err = data["error_rows"][0]
     assert err["message_key"] == "appointments.operating_hours.before_open"
     assert err["params"]["day"] == "monday"
+
+
+# ===========================================================================
+# Item 8: DB index hardening for high-traffic reads
+# ===========================================================================
+
+
+def test_sms_message_model_declares_high_traffic_indexes():
+    """SMS list/filter endpoints should have explicit recency/filter indexes."""
+    names = {idx.name for idx in SMSMessage.__table__.indexes}
+    assert "ix_sms_created" in names
+    assert "ix_sms_contact_created" in names
+    assert "ix_sms_dept_created" in names
+
+
+def test_time_slot_model_declares_lookup_index():
+    """Availability checks should use a single composite lookup index on time slots."""
+    names = {idx.name for idx in TimeSlot.__table__.indexes}
+    assert "ix_time_slots_lookup" in names
