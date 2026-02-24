@@ -1,3 +1,19 @@
+## 2026-02-24 11:08 PST — Make performance-index migration idempotent/safe ✅
+
+### Shipped in this iteration
+- Hardened `alembic/versions/bf5cfbb6a13b_add_performance_indexes.py` to be idempotent on schema-drifted environments.
+- Added migration-local guards to avoid duplicate-index and missing-index failures:
+  - `_create_index_if_missing(...)` checks existing indexes before `op.create_index(...)`
+  - `_drop_index_if_exists(...)` checks existing indexes before `op.drop_index(...)`
+- Kept scope intentionally small: one focused DB index safety improvement in a single migration file.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
