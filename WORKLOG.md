@@ -1,3 +1,21 @@
+## 2026-02-24 07:24 PST — Dashboard WebSocket duplicate-connect reconnect hardening ✅
+
+### Shipped in this iteration
+- Hardened dashboard client reconnect behavior in `app/static/js/dashboard.js` to avoid duplicate concurrent sockets:
+  - `connectWebSocket()` now no-ops when a socket is already `OPEN` or `CONNECTING`
+  - event handlers are now bound to the specific socket instance and ignored if stale
+- Improved close/reconnect lifecycle safety:
+  - active socket reference is explicitly cleared on close before scheduling reconnect
+  - focus-trigger reconnect now also handles `CLOSING` sockets (not just `CLOSED`)
+- Net effect: fewer racey reconnect loops and reduced risk of duplicate event handling after quick tab focus/connection churn.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration

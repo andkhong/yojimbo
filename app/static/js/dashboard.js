@@ -35,20 +35,27 @@ function dashboardApp() {
 
             // If tab becomes active again and socket is not open, reconnect.
             window.addEventListener('focus', () => {
-                if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
+                if (!this.ws || [WebSocket.CLOSED, WebSocket.CLOSING].includes(this.ws.readyState)) {
                     this.connectWebSocket();
                 }
             });
         },
 
         connectWebSocket() {
+            if (this.ws && [WebSocket.OPEN, WebSocket.CONNECTING].includes(this.ws.readyState)) {
+                return;
+            }
+
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws/dashboard`;
 
             try {
-                this.ws = new WebSocket(wsUrl);
+                const socket = new WebSocket(wsUrl);
+                this.ws = socket;
 
-                this.ws.onopen = () => {
+                socket.onopen = () => {
+                    if (this.ws !== socket) return;
+
                     console.log('Dashboard WebSocket connected');
                     this.wsReconnectAttempts = 0;
                     this.wsLastPongAt = Date.now();
@@ -59,7 +66,9 @@ function dashboardApp() {
                     this.startHeartbeat();
                 };
 
-                this.ws.onmessage = (event) => {
+                socket.onmessage = (event) => {
+                    if (this.ws !== socket) return;
+
                     try {
                         const msg = JSON.parse(event.data);
                         if (msg.event === 'pong' || msg.event === 'ping') {
@@ -71,12 +80,16 @@ function dashboardApp() {
                     }
                 };
 
-                this.ws.onclose = () => {
+                socket.onclose = () => {
+                    if (this.ws !== socket) return;
+
+                    this.ws = null;
                     this.stopHeartbeat();
                     this.scheduleReconnect();
                 };
 
-                this.ws.onerror = (err) => {
+                socket.onerror = (err) => {
+                    if (this.ws !== socket) return;
                     console.error('WebSocket error:', err);
                 };
             } catch (e) {
