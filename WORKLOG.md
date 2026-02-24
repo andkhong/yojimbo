@@ -1,3 +1,17 @@
+## 2026-02-24 00:17 PST — Legacy performance-index migration idempotency hardening (DB index safety) ✅
+
+### Shipped in this iteration
+- Hardened `alembic/versions/bf5cfbb6a13b_add_performance_indexes.py` for safer re-runs/partial-state deploys.
+- Added `if_not_exists=True` to all index creations in `upgrade()`.
+- Added `if_exists=True` to all index drops in `downgrade()`.
+
+### Validation
+- `.venv311/bin/ruff format app/ tests/` ✅
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **411 passed**
+
+---
+
 ## 2026-02-23 23:12 PST — Monitor WebSocket reconnect cursor-ahead handling + coverage ✅
 
 ### Shipped in this iteration
