@@ -1,3 +1,21 @@
+## 2026-02-23 22:40 PST — Agent config i18n-ready error contracts + coverage ✅
+
+### Shipped in this iteration
+- Improved `app/api/agent_config.py` error payload contracts to be i18n-ready using structured `detail` objects (`message_key`, `message`, `params`):
+  - `agent_config.invalid_key` for `GET /api/config/agent/{key}` invalid-key validation (400)
+  - `agent_config.key_not_set` for missing key lookups/deletes (404)
+- Added focused regression tests in `tests/test_agent_config_i18n_errors.py`:
+  - `test_get_config_invalid_key_is_i18n_ready`
+  - `test_get_config_missing_key_is_i18n_ready`
+  - `test_delete_config_missing_key_is_i18n_ready`
+- Increased suite size from **402** to **405 passing tests**.
+
+### Validation
+- `.venv311/bin/ruff check app/ tests/ --fix` ✅
+- `.venv311/bin/pytest -q` ✅ **405 passed**
+
+---
+
 ## 2026-02-23 22:26 PST — Knowledge + audit-log i18n-ready not-found errors ✅
 
 ### Shipped in this iteration
