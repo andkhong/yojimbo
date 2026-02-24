@@ -53,7 +53,18 @@ async def list_appointments(
     if status:
         query = query.where(Appointment.status == status)
     if target_date:
-        d = date.fromisoformat(target_date)
+        try:
+            d = date.fromisoformat(target_date)
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail=_i18n_error(
+                    "appointments.invalid_date",
+                    "Invalid target_date format. Expected YYYY-MM-DD",
+                    field="target_date",
+                    value=target_date,
+                ),
+            )
         query = query.where(
             Appointment.scheduled_start >= datetime.combine(d, datetime.min.time()),
             Appointment.scheduled_start < datetime.combine(d, datetime.max.time()),
@@ -125,7 +136,19 @@ async def check_availability(
     target_date: str,
     db: AsyncSession = Depends(get_db),
 ):
-    d = date.fromisoformat(target_date)
+    try:
+        d = date.fromisoformat(target_date)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=_i18n_error(
+                "appointments.invalid_date",
+                "Invalid target_date format. Expected YYYY-MM-DD",
+                field="target_date",
+                value=target_date,
+            ),
+        )
+
     slots = await appointment_engine.get_available_slots(db, department_id, d)
 
     return AvailabilityResponse(

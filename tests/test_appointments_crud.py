@@ -295,6 +295,24 @@ async def test_appointments_pagination(client, db):
     assert resp.json()["total"] == 5
 
 
+@pytest.mark.asyncio
+async def test_list_appointments_invalid_target_date_returns_i18n_error(client):
+    resp = await client.get("/api/appointments?target_date=2026-02-30")
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "appointments.invalid_date"
+    assert detail["params"]["field"] == "target_date"
+
+
+@pytest.mark.asyncio
+async def test_availability_invalid_target_date_returns_i18n_error(client):
+    resp = await client.get("/api/appointments/availability?department_id=1&target_date=not-a-date")
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert detail["message_key"] == "appointments.invalid_date"
+    assert detail["params"]["value"] == "not-a-date"
+
+
 # ===========================================================================
 # Messages endpoint
 # ===========================================================================

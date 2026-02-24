@@ -528,3 +528,17 @@ Low priority polish (all major features done):
 ### Validation
 - `ruff check app/ tests/ --fix` ✅
 - `pytest -q` ✅ **367 passed**
+
+## 2026-02-23 17:48 PST — i18n-ready invalid-date errors for appointments list + availability
+
+### Completed
+- Improved API error handling for malformed date inputs (Item #3 iteration):
+  - `GET /api/appointments` now catches invalid `target_date` values and returns HTTP 422 with structured i18n payload:
+    - `message_key`: `appointments.invalid_date`
+    - `params`: includes `field` and `value`
+  - `GET /api/appointments/availability` now applies the same i18n-ready validation and response shape for invalid `target_date`.
+- Added regression tests for both endpoints to ensure invalid-date errors stay explicit and machine-localizable.
+
+### Validation
+- `ruff check app/ tests/ --fix` ✅
+- `pytest -q` ✅ **370 passed**
