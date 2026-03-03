@@ -288,15 +288,17 @@ async def bulk_import_appointments(
 
     contact_map = {
         c.phone_number: c
-        for c in (await db.execute(
-            select(Contact).where(Contact.phone_number.in_(phones))
-        )).scalars().all()
+        for c in (await db.execute(select(Contact).where(Contact.phone_number.in_(phones))))
+        .scalars()
+        .all()
     }
     dept_map = {
         d.code.upper(): d
-        for d in (await db.execute(
-            select(Department).where(func.upper(Department.code).in_(dept_codes))
-        )).scalars().all()
+        for d in (
+            await db.execute(select(Department).where(func.upper(Department.code).in_(dept_codes)))
+        )
+        .scalars()
+        .all()
     }
 
     created = []
@@ -386,14 +388,16 @@ async def bulk_import_appointments(
                 )
                 continue
 
-        existing = (await db.execute(
-            select(Appointment).where(
-                Appointment.contact_id == contact.id,
-                Appointment.department_id == dept.id,
-                Appointment.scheduled_start == start,
-                Appointment.status == "confirmed",
+        existing = (
+            await db.execute(
+                select(Appointment).where(
+                    Appointment.contact_id == contact.id,
+                    Appointment.department_id == dept.id,
+                    Appointment.scheduled_start == start,
+                    Appointment.status == "confirmed",
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
         if existing:
             if data.skip_duplicates:
                 skipped.append({"row": i, "existing_id": existing.id})

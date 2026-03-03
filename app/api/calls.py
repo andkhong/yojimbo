@@ -232,9 +232,7 @@ async def transfer_call(
 @router.get("/{call_id}/recording", summary="Get the recording URL for a completed call")
 async def get_call_recording(call_id: int, db: AsyncSession = Depends(get_db)):
     """Return the Twilio recording URL for a completed call (if recording was enabled)."""
-    call = (await db.execute(
-        select(Call).where(Call.id == call_id)
-    )).scalar_one_or_none()
+    call = (await db.execute(select(Call).where(Call.id == call_id))).scalar_one_or_none()
     if not call:
         raise HTTPException(
             status_code=404,
@@ -274,9 +272,7 @@ async def set_call_recording(
 
     Called by the Twilio recording status callback webhook.
     """
-    call = (await db.execute(
-        select(Call).where(Call.id == call_id)
-    )).scalar_one_or_none()
+    call = (await db.execute(select(Call).where(Call.id == call_id))).scalar_one_or_none()
     if not call:
         raise HTTPException(
             status_code=404,

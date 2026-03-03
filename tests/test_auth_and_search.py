@@ -278,8 +278,6 @@ async def test_refresh_with_access_token_fails(client, db):
     assert detail["params"]["token_type"] == "access"
 
 
-
-
 @pytest.mark.asyncio
 async def test_refresh_for_inactive_user_returns_i18n_error(client, db):
     """Refresh token for now-inactive user returns structured error payload."""

@@ -31,11 +31,13 @@ class _FakeWebSocket:
 @pytest.mark.asyncio
 async def test_dashboard_ws_handles_ping_and_invalid_json(monkeypatch):
     """Handler should respond to ping and ignore malformed payloads."""
-    ws = _FakeWebSocket([
-        json.dumps({"action": "ping"}),
-        "{not-json}",
-        json.dumps({"action": "subscribe_call", "call_id": 42}),
-    ])
+    ws = _FakeWebSocket(
+        [
+            json.dumps({"action": "ping"}),
+            "{not-json}",
+            json.dumps({"action": "subscribe_call", "call_id": 42}),
+        ]
+    )
 
     async def _noop_ping_loop(_ws):
         return None

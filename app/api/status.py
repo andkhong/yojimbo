@@ -101,45 +101,56 @@ async def public_status(db: AsyncSession = Depends(get_db)):
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # System metrics
-    active_calls = (await db.execute(
-        select(func.count()).where(Call.status.in_(["ringing", "in_progress"]))
-    )).scalar() or 0
+    active_calls = (
+        await db.execute(select(func.count()).where(Call.status.in_(["ringing", "in_progress"])))
+    ).scalar() or 0
 
-    today_calls = (await db.execute(
-        select(func.count()).where(Call.started_at >= today_start)
-    )).scalar() or 0
+    today_calls = (
+        await db.execute(select(func.count()).where(Call.started_at >= today_start))
+    ).scalar() or 0
 
-    today_appointments = (await db.execute(
-        select(func.count()).where(
-            Appointment.scheduled_start >= today_start,
-            Appointment.scheduled_start < today_start + timedelta(days=1),
-            Appointment.status == "confirmed",
+    today_appointments = (
+        await db.execute(
+            select(func.count()).where(
+                Appointment.scheduled_start >= today_start,
+                Appointment.scheduled_start < today_start + timedelta(days=1),
+                Appointment.status == "confirmed",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # DB health check
     db_ok = True
     try:
         from sqlalchemy import text
+
         await db.execute(text("SELECT 1"))
     except Exception:
         db_ok = False
 
     # Department availability
-    depts = (await db.execute(
-        select(Department).where(Department.is_active.is_(True)).order_by(Department.name)
-    )).scalars().all()
+    depts = (
+        (
+            await db.execute(
+                select(Department).where(Department.is_active.is_(True)).order_by(Department.name)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     dept_status = []
     for dept in depts:
         is_open = _dept_is_open(dept, now)
-        dept_status.append({
-            "id": dept.id,
-            "name": dept.name,
-            "code": dept.code,
-            "status": "open" if is_open else ("closed" if is_open is False else "unknown"),
-            "has_phone": dept.twilio_phone_number is not None,
-        })
+        dept_status.append(
+            {
+                "id": dept.id,
+                "name": dept.name,
+                "code": dept.code,
+                "status": "open" if is_open else ("closed" if is_open is False else "unknown"),
+                "has_phone": dept.twilio_phone_number is not None,
+            }
+        )
 
     # Overall status
     if not db_ok:

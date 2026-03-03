@@ -43,9 +43,7 @@ async def test_slot_availability_invalid_date_error_is_i18n_ready(client):
     assert create.status_code == 201
     department_id = create.json()["department"]["id"]
 
-    resp = await client.get(
-        f"/api/departments/{department_id}/slots/availability?date=02-23-2026"
-    )
+    resp = await client.get(f"/api/departments/{department_id}/slots/availability?date=02-23-2026")
     assert resp.status_code == 422
     detail = resp.json()["detail"]
     assert detail["message_key"] == "departments.availability.invalid_date_format"

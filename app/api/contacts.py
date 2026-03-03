@@ -136,7 +136,9 @@ async def get_contact(
     if not contact:
         raise HTTPException(
             status_code=404,
-            detail=_localized_error("contacts.not_found", "Contact not found", contact_id=contact_id),
+            detail=_localized_error(
+                "contacts.not_found", "Contact not found", contact_id=contact_id
+            ),
         )
 
     # Recent calls
@@ -188,7 +190,9 @@ async def update_contact(
     if not contact:
         raise HTTPException(
             status_code=404,
-            detail=_localized_error("contacts.not_found", "Contact not found", contact_id=contact_id),
+            detail=_localized_error(
+                "contacts.not_found", "Contact not found", contact_id=contact_id
+            ),
         )
 
     for field, value in data.model_dump(exclude_unset=True).items():
@@ -211,7 +215,9 @@ async def get_contact_history(
     if not contact:
         raise HTTPException(
             status_code=404,
-            detail=_localized_error("contacts.not_found", "Contact not found", contact_id=contact_id),
+            detail=_localized_error(
+                "contacts.not_found", "Contact not found", contact_id=contact_id
+            ),
         )
 
     # All calls
@@ -410,7 +416,9 @@ async def set_contact_tags(
     if not contact:
         raise HTTPException(
             status_code=404,
-            detail=_localized_error("contacts.not_found", "Contact not found", contact_id=contact_id),
+            detail=_localized_error(
+                "contacts.not_found", "Contact not found", contact_id=contact_id
+            ),
         )
 
     # Store tags in notes as a structured prefix (simple approach without schema change)
@@ -442,7 +450,9 @@ async def get_contact_tags(
     if not contact:
         raise HTTPException(
             status_code=404,
-            detail=_localized_error("contacts.not_found", "Contact not found", contact_id=contact_id),
+            detail=_localized_error(
+                "contacts.not_found", "Contact not found", contact_id=contact_id
+            ),
         )
 
     tags: list[str] = []

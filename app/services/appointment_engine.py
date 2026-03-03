@@ -155,8 +155,8 @@ def check_operating_hours(
             f"Appointment starts at {scheduled_start.strftime('%H:%M')} but the department "
             f"opens at {open_time.strftime('%H:%M')} on {day_key.capitalize()}.",
             day=day_key,
-            opens_at=open_time.strftime('%H:%M'),
-            starts_at=scheduled_start.strftime('%H:%M'),
+            opens_at=open_time.strftime("%H:%M"),
+            starts_at=scheduled_start.strftime("%H:%M"),
         )
     if scheduled_end > close_dt:
         raise OutsideOperatingHoursError(
@@ -164,8 +164,8 @@ def check_operating_hours(
             f"Appointment ends at {scheduled_end.strftime('%H:%M')} but the department "
             f"closes at {close_time.strftime('%H:%M')} on {day_key.capitalize()}.",
             day=day_key,
-            closes_at=close_time.strftime('%H:%M'),
-            ends_at=scheduled_end.strftime('%H:%M'),
+            closes_at=close_time.strftime("%H:%M"),
+            ends_at=scheduled_end.strftime("%H:%M"),
         )
 
 
@@ -254,9 +254,9 @@ async def book_appointment(
     if enforce_operating_hours:
         from app.models.department import Department
 
-        dept = (await db.execute(
-            select(Department).where(Department.id == department_id)
-        )).scalar_one_or_none()
+        dept = (
+            await db.execute(select(Department).where(Department.id == department_id))
+        ).scalar_one_or_none()
         if dept and _uses_structured_operating_hours(dept.operating_hours):
             check_operating_hours(dept.operating_hours, scheduled_start, scheduled_end)
 

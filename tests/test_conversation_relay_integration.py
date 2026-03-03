@@ -43,7 +43,11 @@ async def test_handle_setup_reconnect_reuses_call_and_does_not_double_count(db, 
     assert first_sid == second_sid == "CA_reconnect_001"
     assert first_call_id == second_call_id
 
-    calls = (await db.execute(select(Call).where(Call.twilio_call_sid == "CA_reconnect_001"))).scalars().all()
+    calls = (
+        (await db.execute(select(Call).where(Call.twilio_call_sid == "CA_reconnect_001")))
+        .scalars()
+        .all()
+    )
     assert len(calls) == 1
 
     pref = (
@@ -107,7 +111,9 @@ async def test_conversation_relay_flow_completes_call_and_tracks_preferences(db,
     sent = [json.loads(payload) for payload in ws.sent if payload]
     assert any(m.get("type") == "text" for m in sent)
 
-    call = (await db.execute(select(Call).where(Call.twilio_call_sid == "CA_flow_001"))).scalar_one()
+    call = (
+        await db.execute(select(Call).where(Call.twilio_call_sid == "CA_flow_001"))
+    ).scalar_one()
     assert call.status == "completed"
     assert call.summary and "permit help" in call.summary
 
@@ -196,7 +202,9 @@ async def test_handle_setup_without_caller_phone_skips_preference_row(db, monkey
     assert sid == "CA_no_phone_001"
     assert call_id is not None
 
-    call = (await db.execute(select(Call).where(Call.twilio_call_sid == "CA_no_phone_001"))).scalar_one()
+    call = (
+        await db.execute(select(Call).where(Call.twilio_call_sid == "CA_no_phone_001"))
+    ).scalar_one()
     assert call.status == "in_progress"
 
     prefs = (await db.execute(select(CallerPreference))).scalars().all()

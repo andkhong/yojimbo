@@ -54,9 +54,11 @@ class CallerPreferenceUpsert(BaseModel):
 @router.get("/{phone_number:path}", summary="Get preferences for a caller by phone number")
 async def get_preferences(phone_number: str, db: AsyncSession = Depends(get_db)):
     """Return stored preferences for a phone number, or 404 if none set."""
-    pref = (await db.execute(
-        select(CallerPreference).where(CallerPreference.phone_number == phone_number)
-    )).scalar_one_or_none()
+    pref = (
+        await db.execute(
+            select(CallerPreference).where(CallerPreference.phone_number == phone_number)
+        )
+    ).scalar_one_or_none()
     if not pref:
         raise HTTPException(
             status_code=404,
@@ -76,9 +78,11 @@ async def upsert_preferences(
     db: AsyncSession = Depends(get_db),
 ):
     """Create or update preferences for a phone number."""
-    pref = (await db.execute(
-        select(CallerPreference).where(CallerPreference.phone_number == phone_number)
-    )).scalar_one_or_none()
+    pref = (
+        await db.execute(
+            select(CallerPreference).where(CallerPreference.phone_number == phone_number)
+        )
+    ).scalar_one_or_none()
 
     if pref:
         for field, value in data.model_dump().items():
@@ -95,9 +99,11 @@ async def upsert_preferences(
 @router.delete("/{phone_number:path}", status_code=204, summary="Delete caller preferences")
 async def delete_preferences(phone_number: str, db: AsyncSession = Depends(get_db)):
     """Remove all stored preferences for a phone number."""
-    pref = (await db.execute(
-        select(CallerPreference).where(CallerPreference.phone_number == phone_number)
-    )).scalar_one_or_none()
+    pref = (
+        await db.execute(
+            select(CallerPreference).where(CallerPreference.phone_number == phone_number)
+        )
+    ).scalar_one_or_none()
     if not pref:
         raise HTTPException(
             status_code=404,
@@ -116,9 +122,11 @@ async def increment_call_count(phone_number: str, db: AsyncSession = Depends(get
     """Increment call count and update last_call_at. Creates preference record if needed."""
     from datetime import datetime
 
-    pref = (await db.execute(
-        select(CallerPreference).where(CallerPreference.phone_number == phone_number)
-    )).scalar_one_or_none()
+    pref = (
+        await db.execute(
+            select(CallerPreference).where(CallerPreference.phone_number == phone_number)
+        )
+    ).scalar_one_or_none()
 
     if not pref:
         pref = CallerPreference(phone_number=phone_number)
